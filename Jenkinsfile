@@ -100,8 +100,7 @@ pipeline {
                                                 credentials('brave-builds-github-token-for-pr-builder')
                                                 github('brave/devops', 'https')
                                             }
-                                            // FIXME: branch('${params.DEVOPS_BRANCH}')
-                                            branch('chromium-brave-core')
+                                            branch('${params.DEVOPS_BRANCH}')
                                         }
                                     }
                                     scriptPath("jenkins/jobs/browser/pr-brave-browser-${PLATFORM}.Jenkinsfile")
