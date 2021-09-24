@@ -4,6 +4,7 @@
 # You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import("//build/config/sysroot.gni")
+import("//build/config/ios/config.gni")
 
 rustc_target = ""
 rustc_toolchain = ""
@@ -49,7 +50,11 @@ if (is_win) {
   }
 } else if (is_ios) {
   if (current_cpu == "arm64") {
-    rustc_target = "aarch64-apple-ios"
+    if (target_environment == "simulator") {
+      rustc_target = "aarch64-apple-ios-sim"
+    } else {
+      rustc_target = "aarch64-apple-ios"
+    }
   } else if (current_cpu == "x64") {
     rustc_target = "x86_64-apple-ios"
   }
