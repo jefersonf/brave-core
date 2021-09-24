@@ -43,7 +43,7 @@ class Confirmations final : public RedeemUnblindedTokenDelegate {
                const AdType& ad_type,
                const ConfirmationType& confirmation_type);
 
-  void RetryAfterDelay();
+  void ProcessRetryQueue();
 
  private:
   base::ObserverList<ConfirmationsObserver> observers_;
@@ -64,20 +64,18 @@ class Confirmations final : public RedeemUnblindedTokenDelegate {
       const ConfirmationInfo& confirmation);
   void AppendToRetryQueue(const ConfirmationInfo& confirmation);
   void RemoveFromRetryQueue(const ConfirmationInfo& confirmation);
-  void Retry();
+  void OnProcessRetryQueue();
 
-  void NotifyDidConfirm(const double estimated_redemption_value,
+  void NotifyDidConfirm(const double value,
                         const ConfirmationInfo& confirmation) const;
 
   void NotifyFailedToConfirm(const ConfirmationInfo& confirmation) const;
 
   // RedeemUnblindedTokenDelegate:
   void OnDidSendConfirmation(const ConfirmationInfo& confirmation) override;
-
   void OnDidRedeemUnblindedToken(
       const ConfirmationInfo& confirmation,
       const privacy::UnblindedTokenInfo& unblinded_payment_token) override;
-
   void OnFailedToRedeemUnblindedToken(const ConfirmationInfo& confirmation,
                                       const bool should_retry) override;
 };

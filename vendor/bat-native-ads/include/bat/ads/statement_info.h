@@ -30,10 +30,10 @@ struct ADS_EXPORT StatementInfo final {
   std::string ToJson() const;
   bool FromJson(const std::string& json);
 
-  double next_payment_date = 0;
-  int ads_received_this_month = 0;
   double earnings_this_month = 0.0;
   double earnings_last_month = 0.0;
+  double next_payment_date = 0;
+  int ads_received_this_month = 0;
   TransactionList cleared_transactions;
   TransactionList uncleared_transactions;
 
@@ -41,7 +41,7 @@ struct ADS_EXPORT StatementInfo final {
   double GetNextPaymentDateFromDictionary(
       base::DictionaryValue* dictionary) const;
 
-  uint64_t GetAdsReceivedThisMonthFromDictionary(
+  uint64_t GetAdsReceivedForThisMonthFromDictionary(
       base::DictionaryValue* dictionary) const;
 
   double GetEarningsThisMonthFromDictionary(

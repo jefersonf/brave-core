@@ -18,13 +18,9 @@ struct ConfirmationInfo;
 
 namespace transactions {
 
-TransactionList GetCleared(const base::Time& from, const base::Time& to);
-TransactionList GetUncleared();
-
 uint64_t GetCountForMonth(const base::Time& time);
 
-void Add(const double estimated_redemption_value,
-         const ConfirmationInfo& confirmation);
+void Add(const double value, const ConfirmationInfo& confirmation);
 
 }  // namespace transactions
 }  // namespace ads

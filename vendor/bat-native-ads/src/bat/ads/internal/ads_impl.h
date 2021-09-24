@@ -186,8 +186,6 @@ class AdsImpl final : public Ads,
 
   void RemoveAllHistory(RemoveAllHistoryCallback callback) override;
 
-  void ReconcileAdRewards() override;
-
   AdsHistoryInfo GetAdsHistory(const AdsHistoryFilterType filter_type,
                                const AdsHistorySortType sort_type,
                                const double from_timestamp,

@@ -75,6 +75,7 @@ bool Account::SetWallet(const std::string& id, const std::string& seed) {
   const WalletInfo wallet = wallet_->Get();
 
   if (last_wallet.IsValid() && last_wallet != wallet) {
+    // TODO(tmancey): Decouple to ResetWallet
     ad_rewards_->Reset();
 
     NotifyWalletDidChange(wallet);
@@ -113,21 +114,12 @@ StatementInfo Account::GetStatement(const base::Time& from,
   return statement_->Get(from, to);
 }
 
-void Account::Reconcile() {
-  if (!ShouldRewardUser()) {
-    return;
-  }
-
-  const WalletInfo wallet = GetWallet();
-  ad_rewards_->MaybeReconcile(wallet);
-}
-
 void Account::ProcessTransactions() {
   if (!ShouldRewardUser()) {
     return;
   }
 
-  confirmations_->RetryAfterDelay();
+  confirmations_->ProcessRetryQueue();
 
   ProcessUnclearedTransactions();
 }
@@ -186,9 +178,9 @@ void Account::OnFailedToGetIssuers() {
   BLOG(0, "Failed to get issuers");
 }
 
-void Account::OnDidConfirm(const double estimated_redemption_value,
+void Account::OnDidConfirm(const double value,
                            const ConfirmationInfo& confirmation) {
-  transactions::Add(estimated_redemption_value, confirmation);
+  transactions::Add(value, confirmation);
   NotifyStatementOfAccountsDidChange();
 
   TopUpUnblindedTokens();
@@ -199,21 +191,12 @@ void Account::OnFailedToConfirm(const ConfirmationInfo& confirmation) {
 
   TopUpUnblindedTokens();
 
-  confirmations_->RetryAfterDelay();
-}
-
-void Account::OnDidReconcileAdRewards() {
-  NotifyStatementOfAccountsDidChange();
+  confirmations_->ProcessRetryQueue();
 }
 
 void Account::OnDidRedeemUnblindedPaymentTokens(
     const privacy::UnblindedTokenList unblinded_tokens) {
   BLOG(1, "Successfully redeemed unblinded payment tokens");
-
-  const TransactionList transactions = transactions::GetUncleared();
-  ad_rewards_->AppendUnreconciledTransactions(transactions);
-
-  Reconcile();
 }
 
 void Account::OnFailedToRedeemUnblindedPaymentTokens() {

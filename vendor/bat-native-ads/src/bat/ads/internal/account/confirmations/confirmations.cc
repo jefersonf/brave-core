@@ -34,10 +34,8 @@ namespace {
 const int64_t kRetryAfterSeconds = 5 * base::Time::kSecondsPerMinute;
 }  // namespace
 
-Confirmations::Confirmations(privacy::TokenGeneratorInterface* token_generator,
-                             AdRewards* ad_rewards)
+Confirmations::Confirmations(privacy::TokenGeneratorInterface* token_generator)
     : token_generator_(token_generator),
-      confirmations_state_(std::make_unique<ConfirmationsState>(ad_rewards)),
       redeem_unblinded_token_(std::make_unique<RedeemUnblindedToken>()) {
   DCHECK(token_generator_);
 
@@ -78,19 +76,37 @@ void Confirmations::Confirm(const std::string& creative_instance_id,
       });
 }
 
-void Confirmations::RetryAfterDelay() {
+void Confirmations::ProcessRetryQueue() {
   if (retry_timer_.IsRunning()) {
     return;
   }
 
   const base::Time time = retry_timer_.StartWithPrivacy(
       base::TimeDelta::FromSeconds(kRetryAfterSeconds),
-      base::BindOnce(&Confirmations::Retry, base::Unretained(this)));
+      base::BindOnce(&Confirmations::OnProcessRetryQueue,
+                     base::Unretained(this)));
 
   BLOG(1, "Retry failed confirmations " << FriendlyDateAndTime(time));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+
+void Confirmations::OnProcessRetryQueue() {
+  ConfirmationList failed_confirmations =
+      ConfirmationsState::Get()->GetFailedConfirmations();
+  if (failed_confirmations.empty()) {
+    BLOG(1, "No failed confirmations to retry");
+    return;
+  }
+
+  ConfirmationInfo confirmation = failed_confirmations.front();
+  // TODO(tmancey): Only remove once unblinded token has been redeemed
+  RemoveFromRetryQueue(confirmation);
+
+  redeem_unblinded_token_->Redeem(confirmation);
+
+  ProcessRetryQueue();
+}
 
 ConfirmationInfo Confirmations::CreateConfirmation(
     const std::string& creative_instance_id,
@@ -197,22 +213,6 @@ void Confirmations::RemoveFromRetryQueue(const ConfirmationInfo& confirmation) {
   ConfirmationsState::Get()->Save();
 }
 
-void Confirmations::Retry() {
-  ConfirmationList failed_confirmations =
-      ConfirmationsState::Get()->GetFailedConfirmations();
-  if (failed_confirmations.empty()) {
-    BLOG(1, "No failed confirmations to retry");
-    return;
-  }
-
-  ConfirmationInfo confirmation = failed_confirmations.front();
-  RemoveFromRetryQueue(confirmation);
-
-  redeem_unblinded_token_->Redeem(confirmation);
-
-  RetryAfterDelay();
-}
-
 void Confirmations::OnDidSendConfirmation(
     const ConfirmationInfo& confirmation) {
   BLOG(1, "Successfully sent confirmation with id "
@@ -284,10 +284,9 @@ void Confirmations::OnFailedToRedeemUnblindedToken(
 }
 
 void Confirmations::NotifyDidConfirm(
-    const double estimated_redemption_value,
-    const ConfirmationInfo& confirmation) const {
+    const double value, const ConfirmationInfo& confirmation) const {
   for (ConfirmationsObserver& observer : observers_) {
-    observer.OnDidConfirm(estimated_redemption_value, confirmation);
+    observer.OnDidConfirm(value, confirmation);
   }
 }
 

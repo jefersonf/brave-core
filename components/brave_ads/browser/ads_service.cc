@@ -73,9 +73,9 @@ void AdsService::RegisterProfilePrefs(
   registry->RegisterStringPref(ads::prefs::kEpsilonGreedyBanditEligibleSegments,
                                "");
 
-  registry->RegisterDoublePref(ads::prefs::kUnreconciledTransactions, 0.0);
-
   registry->RegisterBooleanPref(ads::prefs::kHasMigratedConversionState, false);
+  registry->RegisterBooleanPref(ads::prefs::kHasMigratedTransactionState,
+                                false);
 }
 
 }  // namespace brave_ads

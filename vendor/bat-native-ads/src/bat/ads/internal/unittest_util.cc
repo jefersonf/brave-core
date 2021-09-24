@@ -278,6 +278,7 @@ void MockDefaultPrefs(const std::unique_ptr<AdsClientMock>& mock) {
   mock->SetDoublePref(prefs::kUnreconciledTransactions, 0.0);
 
   mock->SetBooleanPref(prefs::kHasMigratedConversionState, true);
+  mock->SetBooleanPref(prefs::kHasMigratedTransactionState, true);
 }
 
 }  // namespace

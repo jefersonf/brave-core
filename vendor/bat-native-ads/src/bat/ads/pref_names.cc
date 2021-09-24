@@ -57,12 +57,11 @@ const char kEpsilonGreedyBanditArms[] =
 const char kEpsilonGreedyBanditEligibleSegments[] =
     "brave.brave_ads.epsilon_greedy_bandit_eligible_segments";
 
-const char kUnreconciledTransactions[] =
-    "brave.brave_ads.ad_rewards.unreconciled_transactions";
-
 // Stores migration status
 const char kHasMigratedConversionState[] =
     "brave.brave_ads.migrated.conversion_state";
+const char kHasMigratedTransactionState[] =
+    "brave.brave_ads.migrated.transaction_state";
 
 }  // namespace prefs
 

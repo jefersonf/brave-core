@@ -39,9 +39,8 @@ extern const char kIssuerPing[];
 extern const char kEpsilonGreedyBanditArms[];
 extern const char kEpsilonGreedyBanditEligibleSegments[];
 
-extern const char kUnreconciledTransactions[];
-
 extern const char kHasMigratedConversionState[];
+extern const char kHasMigratedTransactionState[];
 
 }  // namespace prefs
 

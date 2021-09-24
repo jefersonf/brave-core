@@ -49,6 +49,7 @@
 #include "bat/ads/internal/features/features.h"
 #include "bat/ads/internal/idle_time.h"
 #include "bat/ads/internal/legacy_migration/legacy_conversion_migration.h"
+#include "bat/ads/internal/legacy_migration/legacy_transaction_migration.h"
 #include "bat/ads/internal/logging.h"
 #include "bat/ads/internal/platform/platform_helper.h"
 #include "bat/ads/internal/privacy/tokens/token_generator.h"
@@ -378,14 +379,6 @@ void AdsImpl::RemoveAllHistory(RemoveAllHistoryCallback callback) {
   callback(/* success */ true);
 }
 
-void AdsImpl::ReconcileAdRewards() {
-  if (!IsInitialized()) {
-    return;
-  }
-
-  account_->Reconcile();
-}
-
 AdsHistoryInfo AdsImpl::GetAdsHistory(const AdsHistoryFilterType filter_type,
                                       const AdsHistorySortType sort_type,
                                       const double from_timestamp,
@@ -587,6 +580,17 @@ void AdsImpl::MigrateConversions(InitializeCallback callback) {
       return;
     }
 
+    MigrateTransactions(callback);
+  });
+}
+
+void AdsImpl::MigrateTransactions(InitializeCallback callback) {
+  transactions::Migrate([=](const bool success) {
+    if (!success) {
+      callback(/* success */ false);
+      return;
+    }
+
     LoadClientState(callback);
   });
 }
@@ -722,7 +726,7 @@ void AdsImpl::OnWalletDidUpdate(const WalletInfo& wallet) {
 void AdsImpl::OnWalletDidChange(const WalletInfo& wallet) {
   BLOG(0, "Wallet changed");
 
-  ReconcileAdRewards();
+  // TODO(tmancey): Should we not reset ad rewards?
 }
 
 void AdsImpl::OnInvalidWallet() {

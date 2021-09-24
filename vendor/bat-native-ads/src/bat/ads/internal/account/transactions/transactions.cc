@@ -17,47 +17,7 @@
 namespace ads {
 namespace transactions {
 
-TransactionList GetCleared(const base::Time& from, const base::Time& to) {
-  TransactionList transactions = ConfirmationsState::Get()->GetTransactions();
-
-  const auto iter = std::remove_if(
-      transactions.begin(), transactions.end(),
-      [&from, &to](const TransactionInfo& transaction) {
-        const base::Time time = base::Time::FromDoubleT(transaction.timestamp);
-        return time < from || time > to;
-      });
-
-  transactions.erase(iter, transactions.end());
-
-  return transactions;
-}
-
-TransactionList GetUncleared() {
-  const size_t count =
-      ConfirmationsState::Get()->get_unblinded_payment_tokens()->Count();
-
-  if (count == 0) {
-    // There are no uncleared unblinded payment tokens to redeem
-    return {};
-  }
-
-  // Uncleared transactions are always at the end of the transaction history
-  const TransactionList transactions =
-      ConfirmationsState::Get()->GetTransactions();
-
-  if (transactions.size() < count) {
-    // There are fewer transactions than unblinded payment tokens which is
-    // likely due to manually editing transactions in confirmations.json
-    NOTREACHED();
-    return transactions;
-  }
-
-  const TransactionList tail_transactions(transactions.end() - count,
-                                          transactions.end());
-
-  return tail_transactions;
-}
-
+// TODO(tmancey): Refactor to return kViewed count for a list of transactions
 uint64_t GetCountForMonth(const base::Time& time) {
   const TransactionList transactions =
       ConfirmationsState::Get()->GetTransactions();
@@ -68,20 +28,14 @@ uint64_t GetCountForMonth(const base::Time& time) {
   time.LocalExplode(&exploded);
 
   for (const auto& transaction : transactions) {
-    if (transaction.timestamp == 0) {
-      // Workaround for Windows crash when passing 0 to LocalExplode
-      continue;
-    }
-
     const base::Time transaction_time =
-        base::Time::FromDoubleT(transaction.timestamp);
+        base::Time::FromDoubleT(transaction.created_at);
 
     base::Time::Exploded transaction_time_exploded;
     transaction_time.LocalExplode(&transaction_time_exploded);
 
     if (transaction_time_exploded.year == exploded.year &&
         transaction_time_exploded.month == exploded.month &&
-        transaction.estimated_redemption_value > 0.0 &&
         ConfirmationType(transaction.confirmation_type) ==
             ConfirmationType::kViewed) {
       count++;
@@ -91,18 +45,26 @@ uint64_t GetCountForMonth(const base::Time& time) {
   return count;
 }
 
-void Add(const double estimated_redemption_value,
-         const ConfirmationInfo& confirmation) {
+// TODO(tmancey): Rename object to transactions util
+void Add(const double value, const ConfirmationInfo& confirmation) {
   DCHECK(confirmation.IsValid());
 
   TransactionInfo transaction;
 
-  transaction.timestamp = base::Time::Now().ToDoubleT();
-  transaction.estimated_redemption_value = estimated_redemption_value;
+  transaction.created_at = base::Time::Now().ToDoubleT();
+  transaction.value = value;
+  // TODO(tmancey): Remove need to store as a string
   transaction.confirmation_type = std::string(confirmation.type);
 
-  ConfirmationsState::Get()->AppendTransaction(transaction);
-  ConfirmationsState::Get()->Save();
+  database::table::Transactions database_table;
+  database_table.Save({transaction}, [](const bool success) {
+    if (!success) {
+      BLOG(0, "Failed to append transaction");
+      return;
+    }
+
+    BLOG(3, "Successfully appended transaction");
+  });
 }
 
 }  // namespace transactions

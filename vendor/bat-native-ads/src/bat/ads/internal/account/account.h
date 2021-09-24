@@ -66,8 +66,6 @@ class Account final : public AdRewardsDelegate,
   StatementInfo GetStatement(const base::Time& from,
                              const base::Time& to) const;
 
-  void Reconcile();
-
   void ProcessTransactions();
 
  private:
@@ -91,15 +89,12 @@ class Account final : public AdRewardsDelegate,
   void NotifyInvalidWallet() const;
   void NotifyStatementOfAccountsDidChange() const;
 
-  // AdRewardsDelegate:
-  void OnDidReconcileAdRewards() override;
-
   // IssuersDelegate:
   void OnDidGetIssuers(const IssuersInfo& issuers) override;
   void OnFailedToGetIssuers() override;
 
   // ConfirmationsObserver:
-  void OnDidConfirm(const double estimated_redemption_value,
+  void OnDidConfirm(const double value,
                     const ConfirmationInfo& confirmation) override;
   void OnFailedToConfirm(const ConfirmationInfo& confirmation) override;
 

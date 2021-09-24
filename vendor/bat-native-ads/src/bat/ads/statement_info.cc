@@ -80,7 +80,8 @@ bool StatementInfo::FromJson(const std::string& json) {
 
   next_payment_date = GetNextPaymentDateFromDictionary(dictionary);
 
-  ads_received_this_month = GetAdsReceivedThisMonthFromDictionary(dictionary);
+  ads_received_this_month =
+      GetAdsReceivedForThisMonthFromDictionary(dictionary);
 
   earnings_this_month = GetEarningsThisMonthFromDictionary(dictionary);
   earnings_last_month = GetEarningsLastMonthFromDictionary(dictionary);
@@ -110,7 +111,7 @@ double StatementInfo::GetNextPaymentDateFromDictionary(
   return value_as_double;
 }
 
-uint64_t StatementInfo::GetAdsReceivedThisMonthFromDictionary(
+uint64_t StatementInfo::GetAdsReceivedForThisMonthFromDictionary(
     base::DictionaryValue* dictionary) const {
   DCHECK(dictionary);
 
