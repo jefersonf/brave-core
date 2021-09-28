@@ -15,7 +15,7 @@ export const Waves = styled.div`
   background-image: url(${wavesLightUrl});
   background-repeat: no-repeat;
   background-size: cover;
-  background-position: top;
+  background-position: 50% 30%;
   position: absolute;
   bottom: 0;
   z-index: 1;

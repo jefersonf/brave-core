@@ -5,6 +5,7 @@ import * as S from './style'
 // Components
 import MainPanel from '../components/main-panel'
 import ErrorPanel from '../components/error-panel'
+import SettingsPanel from '../components/settings-panel'
 import SelectRegion from '../components/select-region'
 import { ConnectionState } from '../types/connection_state'
 
@@ -59,6 +60,16 @@ export const _Error = () => {
         onChooseServerClick={handleChooseServer}
         region='Tokyo'
       />
+    </S.PanelFrame>
+  )
+}
+
+export const _Settings = () => {
+  const handleBackClick = () => alert('Back')
+
+  return (
+    <S.PanelFrame>
+      <SettingsPanel onBack={handleBackClick} />
     </S.PanelFrame>
   )
 }
