@@ -11,6 +11,7 @@
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/browser/web_ui_message_handler.h"
 #include "ui/base/resource/resource_bundle.h"
+#include "ui/resources/grit/webui_generated_resources.h"
 
 using content::WebUIMessageHandler;
 
@@ -36,6 +37,8 @@ content::WebUIDataSource* CreateTrezorBridgeHTMLSource() {
                           IDR_TREZOR_BRIDGE_HTML_IFRAME_WORKER_SHARED);
   source->AddResourcePath("assets/trezor-connect/iframe.html",
                           IDR_TREZOR_BRIDGE_HTML_IFRAME);
+  source->AddResourcePath("js/cr.js",
+                          IDR_WEBUI_JS_CR_M_JS);
 
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::FrameSrc,

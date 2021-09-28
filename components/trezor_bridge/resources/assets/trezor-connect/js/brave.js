@@ -1,3 +1,4 @@
+
 var globalDataConfig = {
     "webusb": [
         { "vendorId": "0x534c", "productId": "0x0001" },
@@ -3005,18 +3006,6 @@ var globalBridgeReleases = [
         "changelog": "* Fix Certificate issue on Windows"
     }
 ];
-
-window.chrome = {
-  runtime: {
-    onConnect: {
-      addListener: function(a,b,c) {
-        console.log('caller:', arguments.caller)
-        console.log(a,b,c)
-      },
-    },
-    id: "1"
-  }
-};
 
 var globalFirmwareReleases = [
     {
@@ -41711,5 +41700,6 @@ window.fetch = async function(url, obj,a, b, c, d, e) {
     };
   }
 */
-  return sendWithPromise("sendFetchRequest", url, obj)
+  console.log(chrome)
+  return chrome.sendWithPromise("sendFetchRequest", url, obj)
 };
