@@ -51,6 +51,8 @@ enum BraveNetworkDelegateEventType {
 
 enum BlockedBy { kNotBlocked, kAdBlocked, kOtherBlocked };
 
+enum AdblockRedirectType { kNoRedirect, kRemote, kLocal };
+
 struct BraveRequestInfo {
   BraveRequestInfo();
 
@@ -98,12 +100,19 @@ struct BraveRequestInfo {
   GURL* allowed_unsafe_redirect_url = nullptr;
   BraveNetworkDelegateEventType event_type = kUnknownEventType;
   BlockedBy blocked_by = kNotBlocked;
-  std::string mock_data_url;
+
+  // There are two types of redirects supported by adblock-rust:
+  // 1. data:// (filter option: $redirect), loads locally
+  // 2. https:// (filter option: $redirect-url), loads over the network
+  std::string adblock_replacement_url;
+  AdblockRedirectType adblock_redirect_type = kNoRedirect;
+
   GURL ipfs_gateway_url;
   bool ipfs_auto_fallback = false;
 
   bool ShouldMockRequest() const {
-    return blocked_by == kAdBlocked && !mock_data_url.empty();
+    return blocked_by == kAdBlocked && !adblock_replacement_url.empty() &&
+           adblock_redirect_type == kLocal;
   }
 
   net::NetworkIsolationKey network_isolation_key = net::NetworkIsolationKey();

@@ -189,12 +189,23 @@ EngineFlags ShouldBlockRequestOnTaskRunner(
       url_to_check, ctx->resource_type, source_host,
       ctx->aggressive_blocking || force_aggressive,
       &previous_result.did_match_rule, &previous_result.did_match_exception,
-      &previous_result.did_match_important, &ctx->mock_data_url);
+      &previous_result.did_match_important, &ctx->adblock_replacement_url);
 
   if (previous_result.did_match_important ||
       (previous_result.did_match_rule &&
        !previous_result.did_match_exception)) {
     ctx->blocked_by = kAdBlocked;
+  }
+
+  // Check what type of redirection, if any
+  const GURL adblock_url(ctx->adblock_replacement_url);
+  if (ctx->blocked_by == kAdBlocked && adblock_url.is_valid()) {
+    if (adblock_url.SchemeIs(url::kHttpsScheme)) {
+      ctx->new_url_spec = ctx->adblock_replacement_url;
+      ctx->adblock_redirect_type = kRemote;  // UNUSED
+    } else if (adblock_url.SchemeIs(url::kDataScheme)) {
+      ctx->adblock_redirect_type = kLocal;
+    }
   }
 
   return previous_result;

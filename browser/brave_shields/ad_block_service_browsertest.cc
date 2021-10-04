@@ -98,13 +98,14 @@ HostContentSettingsMap* AdBlockServiceTest::content_settings() {
 
 void AdBlockServiceTest::UpdateAdBlockInstanceWithRules(
     const std::string& rules,
-    const std::string& resources) {
+    const std::string& resources,
+    const bool include_redirect_urls) {
   brave_shields::AdBlockService* ad_block_service =
       g_brave_browser_process->ad_block_service();
   ad_block_service->GetTaskRunner()->PostTask(
-      FROM_HERE,
-      base::BindOnce(&brave_shields::AdBlockService::ResetForTest,
-                     base::Unretained(ad_block_service), rules, resources));
+      FROM_HERE, base::BindOnce(&brave_shields::AdBlockService::ResetForTest,
+                                base::Unretained(ad_block_service), rules,
+                                resources, include_redirect_urls));
   WaitForAdBlockServiceThreads();
 }
 
@@ -1513,6 +1514,33 @@ IN_PROC_BROWSER_TEST_F(AdBlockServiceTest, RedirectRulesAreRespected) {
                                  "setExpectations(0, 0, 1, 0);"
                                  "xhr_expect_content('%s', '%s');",
                                  resource_url.spec().c_str(), noopjs.c_str())));
+  EXPECT_EQ(browser()->profile()->GetPrefs()->GetUint64(kAdsBlocked), 1ULL);
+}
+
+IN_PROC_BROWSER_TEST_F(AdBlockServiceTest, RedirectUrl) {
+  net::EmbeddedTestServer https_server(net::EmbeddedTestServer::TYPE_HTTPS);
+  base::FilePath test_data_dir;
+  GetTestDataDir(&test_data_dir);
+  https_server.ServeFilesFromDirectory(test_data_dir);
+  ASSERT_TRUE(https_server.Start());
+
+  GURL redirect_url = https_server.GetURL("/redirected.js");
+  UpdateAdBlockInstanceWithRules(
+      "js_mock_me.js$redirect-url=" + redirect_url.spec(), "", true);
+  EXPECT_EQ(browser()->profile()->GetPrefs()->GetUint64(kAdsBlocked), 0ULL);
+
+  const GURL url = https_server.GetURL(kAdBlockTestPage);
+  ui_test_utils::NavigateToURL(browser(), url);
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  const std::string redirected_src = "redirected\\n";
+  const GURL resource_url_1 = GURL(url.spec() + "/js_mock_me.js");
+  ASSERT_EQ(true, EvalJs(contents,
+                         base::StringPrintf("setExpectations(0, 0, 1, 0);"
+                                            "xhr_expect_content('%s', '%s');",
+                                            resource_url_1.spec().c_str(),
+                                            redirected_src.c_str())));
   EXPECT_EQ(browser()->profile()->GetPrefs()->GetUint64(kAdsBlocked), 1ULL);
 }
 

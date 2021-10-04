@@ -295,13 +295,16 @@ void BraveRequestHandler::RunNextCallback(
         IsRequestIdentifierValid(ctx->request_identifier)) {
       *ctx->new_url = GURL(ctx->new_url_spec);
     }
-    if (ctx->blocked_by == brave::kAdBlocked ||
-        ctx->blocked_by == brave::kOtherBlocked) {
-      if (!ctx->ShouldMockRequest()) {
-        RunCallbackForRequestIdentifier(ctx->request_identifier,
-                                        net::ERR_BLOCKED_BY_CLIENT);
-        return;
-      }
+
+    auto is_blocked = ctx->blocked_by == brave::kAdBlocked ||
+                      ctx->blocked_by == brave::kOtherBlocked;
+    // If we have blocked but we are not going to mock the request and not going
+    // to redirect, then:
+    if (is_blocked && !ctx->ShouldMockRequest() &&
+        ctx->adblock_redirect_type != brave::kRemote) {
+      RunCallbackForRequestIdentifier(ctx->request_identifier,
+                                      net::ERR_BLOCKED_BY_CLIENT);
+      return;
     }
   }
   RunCallbackForRequestIdentifier(ctx->request_identifier, rv);
