@@ -1,9 +1,6 @@
 import styled from 'styled-components'
 import TrashIcon from '../../../assets/svg-icons/trash-icon.svg'
-
-interface StyleProps {
-  icon: string
-}
+import { AssetIconProps, AssetIconFactory } from '../../shared/style'
 
 export const StyledWrapper = styled.div`
   display: flex;
@@ -50,13 +47,16 @@ export const BalanceColumn = styled.div`
   flex-direction: column;
 `
 
-export const AssetIcon = styled.div<StyleProps>`
-  width: 40px;
-  height: 40px;
-  border-radius: 100%;
-  background: ${(p) => p.icon ? `url(${p.icon})` : p.theme.color.background01}};
-  margin-right: 8px;
-`
+// Construct styled-component using JS object instead of string, for editor
+// support with custom AssetIconFactory.
+//
+// Ref: https://styled-components.com/docs/advanced#style-objects
+export const AssetIcon = AssetIconFactory<AssetIconProps>({
+  width: '40px',
+  height: '40px',
+  borderRadius: '100%',
+  marginRight: '8px'
+})
 
 export const CheckboxRow = styled.div`
   display: flex;

@@ -179,7 +179,7 @@ public abstract class BraveActivity<C extends ChromeActivityComponent> extends C
     public static final String CHANNEL_ID = "com.brave.browser";
     public static final String ANDROID_SETUPWIZARD_PACKAGE_NAME = "com.google.android.setupwizard";
     public static final String ANDROID_PACKAGE_NAME = "android";
-    public static final String BRAVE_BLOG_URL = "http://www.brave.com/blog";
+    public static final String BRAVE_BLOG_URL = "https://brave.com/privacy-features/";
 
     // Explicitly declare this variable to avoid build errors.
     // It will be removed in asm and parent variable will be used instead.
@@ -237,10 +237,13 @@ public abstract class BraveActivity<C extends ChromeActivityComponent> extends C
         } else if (id == R.id.brave_wallet_id) {
             openBraveWallet();
         } else if (id == R.id.request_brave_vpn_id || id == R.id.request_brave_vpn_check_id) {
-            BraveVpnUtils.showProgressDialog(BraveActivity.this);
-            if (BraveVpnProfileUtils.getInstance(BraveActivity.this).isVPNConnected()) {
-                BraveVpnProfileUtils.getInstance(BraveActivity.this).stopVpn();
+            if (BraveVpnProfileUtils.getInstance().isVPNConnected(BraveActivity.this)) {
+                BraveVpnUtils.showProgressDialog(
+                        BraveActivity.this, getResources().getString(R.string.vpn_disconnect_text));
+                BraveVpnProfileUtils.getInstance().stopVpn(BraveActivity.this);
             } else {
+                BraveVpnUtils.showProgressDialog(
+                        BraveActivity.this, getResources().getString(R.string.vpn_connect_text));
                 if (BraveVpnPrefUtils.isSubscriptionPurchase()) {
                     verifySubscription();
                 } else {
@@ -278,7 +281,7 @@ public abstract class BraveActivity<C extends ChromeActivityComponent> extends C
                 BraveVpnPrefUtils.setPurchaseExpiry(purchaseExpiry);
                 BraveVpnPrefUtils.setSubscriptionPurchase(true);
                 if (!mIsVerification) {
-                    BraveVpnProfileUtils.getInstance(BraveActivity.this).startStopVpn();
+                    BraveVpnProfileUtils.getInstance().startStopVpn(BraveActivity.this);
                 } else {
                     mIsVerification = false;
                 }
@@ -295,10 +298,10 @@ public abstract class BraveActivity<C extends ChromeActivityComponent> extends C
         BraveVpnPrefUtils.setProductId("");
         BraveVpnPrefUtils.setPurchaseExpiry(0L);
         BraveVpnPrefUtils.setSubscriptionPurchase(false);
-        if (BraveVpnProfileUtils.getInstance(BraveActivity.this).isVPNConnected()) {
-            BraveVpnProfileUtils.getInstance(BraveActivity.this).stopVpn();
+        if (BraveVpnProfileUtils.getInstance().isVPNConnected(BraveActivity.this)) {
+            BraveVpnProfileUtils.getInstance().stopVpn(BraveActivity.this);
         }
-        BraveVpnProfileUtils.getInstance(BraveActivity.this).deleteVpnProfile();
+        BraveVpnProfileUtils.getInstance().deleteVpnProfile(BraveActivity.this);
         Toast.makeText(BraveActivity.this, R.string.purchase_token_verification_failed,
                      Toast.LENGTH_LONG)
                 .show();
@@ -913,7 +916,7 @@ public abstract class BraveActivity<C extends ChromeActivityComponent> extends C
         } else if (resultCode == RESULT_OK
                 && requestCode == BraveVpnProfileUtils.BRAVE_VPN_PROFILE_REQUEST_CODE
                 && BraveVpnUtils.isBraveVpnFeatureEnable()) {
-            BraveVpnProfileUtils.getInstance(BraveActivity.this).startVpn();
+            BraveVpnProfileUtils.getInstance().startVpn(BraveActivity.this);
         }
         super.onActivityResult(requestCode, resultCode, data);
     }

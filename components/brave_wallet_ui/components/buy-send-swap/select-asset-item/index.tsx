@@ -9,8 +9,6 @@ import {
   AssetIcon
 } from './style'
 
-import { formatBalance } from '../../../utils/format-balances'
-
 export interface Props {
   asset: AccountAssetOptionType
   onSelectAsset: () => void
@@ -21,10 +19,10 @@ function SelectAssetItem (props: Props) {
 
   return (
     <StyledWrapper onClick={onSelectAsset}>
-      <AssetIcon icon={asset.asset.icon} />
+      <AssetIcon icon={asset.asset.logo} />
       <AssetAndBalance>
         <AssetName>{asset.asset.name}</AssetName>
-        <AssetBalance>{formatBalance(asset.assetBalance, asset.asset.decimals)} {asset.asset.symbol}</AssetBalance>
+        <AssetBalance>{asset.asset.symbol}</AssetBalance>
       </AssetAndBalance>
     </StyledWrapper>
   )

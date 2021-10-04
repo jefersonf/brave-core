@@ -10,7 +10,6 @@ import android.os.Bundle;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -39,11 +38,13 @@ import org.chromium.chrome.browser.crypto_wallet.EthJsonRpcControllerFactory;
 import org.chromium.chrome.browser.crypto_wallet.EthTxControllerFactory;
 import org.chromium.chrome.browser.crypto_wallet.KeyringControllerFactory;
 import org.chromium.chrome.browser.crypto_wallet.adapters.AccountSpinnerAdapter;
+import org.chromium.chrome.browser.crypto_wallet.adapters.NetworkSpinnerAdapter;
 import org.chromium.chrome.browser.crypto_wallet.adapters.WalletCoinAdapter;
 import org.chromium.chrome.browser.crypto_wallet.fragments.ApproveTxBottomSheetDialogFragment;
 import org.chromium.chrome.browser.crypto_wallet.fragments.EditVisibleAssetsBottomSheetDialogFragment;
 import org.chromium.chrome.browser.crypto_wallet.util.Utils;
 import org.chromium.chrome.browser.init.AsyncInitializationActivity;
+import org.chromium.chrome.browser.util.TabUtils;
 import org.chromium.mojo.bindings.ConnectionErrorHandler;
 import org.chromium.mojo.system.MojoException;
 
@@ -164,9 +165,8 @@ public class BuySendSwapActivity extends AsyncInitializationActivity
         Spinner spinner = findViewById(R.id.network_spinner);
         spinner.setOnItemSelectedListener(this);
         // Creating adapter for spinner
-        ArrayAdapter<String> dataAdapter = new ArrayAdapter<String>(
-                this, android.R.layout.simple_spinner_item, Utils.getNetworksList(this));
-        dataAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        NetworkSpinnerAdapter dataAdapter = new NetworkSpinnerAdapter(
+                this, Utils.getNetworksList(this), Utils.getNetworksAbbrevList(this));
         spinner.setAdapter(dataAdapter);
 
         onInitialLayoutInflationComplete();
@@ -354,19 +354,18 @@ public class BuySendSwapActivity extends AsyncInitializationActivity
         }
 
         btnBuySendSwap.setOnClickListener(v -> {
+            Spinner accountSpinner = findViewById(R.id.accounts_spinner);
+            String from = mCustomAccountAdapter.getTitleAtPosition(
+                    accountSpinner.getSelectedItemPosition());
+            TextView fromValueText = findViewById(R.id.from_value_text);
+            // TODO(sergz): Some kind of validation that we have enough balance
+            String value = fromValueText.getText().toString();
             if (mActivityType == ActivityType.SEND) {
-                // TODO(sergz): token transfers via a token contract
                 String to = toValueText.getText().toString();
                 if (to.isEmpty()) {
                     // TODO(sergz): some address validation
                     return;
                 }
-                TextView fromValueText = findViewById(R.id.from_value_text);
-                // TODO(sergz): Some kind of validation that we have enough balance
-                String value = fromValueText.getText().toString();
-                Spinner accountSpinner = findViewById(R.id.accounts_spinner);
-                String from = mCustomAccountAdapter.getTitleAtPosition(
-                        accountSpinner.getSelectedItemPosition());
                 if (mCurrentErcToken == null || mCurrentErcToken.contractAddress.isEmpty()) {
                     TxData data =
                             Utils.getTxData("0x1", "", "", to, Utils.toHexWei(value), new byte[0]);
@@ -375,6 +374,13 @@ public class BuySendSwapActivity extends AsyncInitializationActivity
                     addUnapprovedTransactionERC20(
                             to, Utils.toHexWei(value), from, mCurrentErcToken.contractAddress);
                 }
+            } else if (mActivityType == ActivityType.BUY) {
+                assert mErcTokenRegistry != null;
+                String asset = assetDropDown.getText().toString();
+                mErcTokenRegistry.getBuyUrl(from, asset, value, url -> {
+                    TabUtils.openUrlInNewTab(false, url);
+                    TabUtils.bringChromeTabbedActivityToTheTop(this);
+                });
             }
         });
 

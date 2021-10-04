@@ -200,6 +200,7 @@ interface ERCTokenRegistry {
   GetTokenBySymbol(string symbol) => (ERCToken? token);
   GetAllTokens() => (array<ERCToken> tokens);
   GetBuyTokens() => (array<ERCToken> tokens);
+  GetBuyUrl(string address, string symbol, string amount) => (string url);
 };
 
 interface KeyringController {
@@ -230,6 +231,9 @@ interface KeyringController {
   AddHardwareAccounts(array<HardwareWalletAccount> info);
   GetHardwareAccounts() => (array<AccountInfo> accounts);
   RemoveHardwareAccount(string address);
+  NotifyUserInteraction();
+  GetSelectedAccount() => (string? address);
+  SetSelectedAccount(string address) => (bool success);
 };
 
 interface AssetRatioController {
@@ -237,13 +241,18 @@ interface AssetRatioController {
       (bool success, array<AssetPrice> values);
   GetPriceHistory(string asset, AssetPriceTimeframe timeframe) =>
       (bool success, array<AssetTimePrice> values);
+
+  // Gas estimation APIs
+  GetEstimatedTime(string gas_price /* decimal string in wei */) =>
+      (bool success, string seconds);
+  GetGasOracle() => (GasEstimation1559? estimation);
 };
 
 interface SwapController {
   GetPriceQuote(SwapParams params) =>
-      (bool success, SwapResponse? response, string error_response);
+      (bool success, SwapResponse? response, string? error_response);
   GetTransactionPayload(SwapParams params) =>
-      (bool success, SwapResponse? response, string error_response);
+      (bool success, SwapResponse? response, string? error_response);
 };
 
 interface EthJsonRpcControllerObserver {
@@ -260,11 +269,22 @@ struct TxData {
   array<uint8> data;
 };
 
+struct GasEstimation1559 {
+  string slow_max_priority_fee_per_gas;
+  string slow_max_fee_per_gas;
+  string avg_max_priority_fee_per_gas;
+  string avg_max_fee_per_gas;
+  string fast_max_priority_fee_per_gas;
+  string fast_max_fee_per_gas;
+  string base_fee_per_gas;
+};
+
 struct TxData1559 {
   TxData base_data;
   string chain_id;
   string max_priority_fee_per_gas;
   string max_fee_per_gas;
+  GasEstimation1559? gas_estimation;
 };
 
 const string kMainnetChainId = "0x1";
@@ -343,6 +363,7 @@ interface EthTxController {
   ApproveTransaction(string tx_meta_id) => (bool status);
   RejectTransaction(string tx_meta_id) => (bool status);
   SetGasPriceAndLimitForUnapprovedTransaction(string tx_meta_id, string gas_price, string gas_limit) => (bool success);
+  SetGasFeeAndLimitForUnapprovedTransaction(string tx_meta_id, string max_priority_fee_per_gas, string max_fee_per_gas, string gas_limit) => (bool success);
   MakeERC20TransferData(string to_address, string amount) => (bool success, array<uint8> data);
   MakeERC20ApproveData(string spender_address, string amount) => (bool success, array<uint8> data);
   // This returns different data depending on which network is currently selected in EthJsonRpcController
@@ -363,6 +384,8 @@ interface BraveWalletService {
   ImportFromMetaMask(string password, string newPassword) => (bool success);
   GetDefaultWallet() => (DefaultWallet default_wallet);
   SetDefaultWallet(DefaultWallet default_wallet);
+  HasEthereumPermission(string origin, string account) => (bool success, bool has_permission);
+  ResetEthereumPermission(string origin, string account) => (bool success);
 };
 
 enum DefaultWallet {

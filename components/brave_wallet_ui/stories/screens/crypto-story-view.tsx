@@ -21,9 +21,9 @@ import {
   UpdateAccountNamePayloadType
 } from '../../constants/types'
 import { TopNavOptions } from '../../options/top-nav-options'
-import { TopTabNav, BackupWarningBanner, AddAccountModal } from '../../components/desktop'
+import { TopTabNav, WalletBanner, AddAccountModal } from '../../components/desktop'
 import { SearchBar, AppList } from '../../components/shared'
-import locale from '../../constants/locale'
+import { getLocale } from '../../../common/locale'
 import { AppsList } from '../../options/apps-list-options'
 import { filterAppList } from '../../utils/filter-app-list'
 import { PortfolioView, AccountsView } from '../../components/desktop/views'
@@ -125,11 +125,12 @@ const CryptoStoryView = (props: Props) => {
     onSetImportError
   } = props
   const [showBackupWarning, setShowBackupWarning] = React.useState<boolean>(needsBackup)
+  const [showDefaultWalletBanner, setShowDefaultWalletBanner] = React.useState<boolean>(needsBackup)
   const [selectedAccount, setSelectedAccount] = React.useState<WalletAccountType>()
   const [hideNav, setHideNav] = React.useState<boolean>(false)
-  const [filteredAppsList, setFilteredAppsList] = React.useState<AppsListType[]>(AppsList)
+  const [filteredAppsList, setFilteredAppsList] = React.useState<AppsListType[]>(AppsList())
   const [favoriteApps, setFavoriteApps] = React.useState<AppObjectType[]>([
-    AppsList[0].appList[0]
+    AppsList()[0].appList[0]
   ])
   const [selectedTab, setSelectedTab] = React.useState<TopTabNavTypes>('portfolio')
 
@@ -155,7 +156,7 @@ const CryptoStoryView = (props: Props) => {
   }
 
   const filterList = (event: any) => {
-    filterAppList(event, AppsList, setFilteredAppsList)
+    filterAppList(event, AppsList(), setFilteredAppsList)
   }
 
   const toggleNav = () => {
@@ -184,21 +185,43 @@ const CryptoStoryView = (props: Props) => {
     toggleNav()
   }
 
+  const onDismissDefaultWalletBanner = () => {
+    setShowDefaultWalletBanner(false)
+  }
+
+  const onClickSettings = () => {
+    // Does nothing in storybook
+    alert('Will Nav to brave://settings/wallet')
+  }
+
   return (
     <StyledWrapper>
       {!hideNav &&
         <>
           <TopTabNav
-            tabList={TopNavOptions}
+            tabList={TopNavOptions()}
             selectedTab={selectedTab}
             onSubmit={tabTo}
             hasMoreButtons={true}
             onLockWallet={onLockWallet}
           />
+          {showDefaultWalletBanner &&
+            <WalletBanner
+              description={getLocale('braveWalletDefaultWalletBanner')}
+              onDismiss={onDismissDefaultWalletBanner}
+              onClick={onClickSettings}
+              bannerType='warning'
+              buttonText={getLocale('braveWalletWalletPopupSettings')}
+            />
+          }
+
           {needsBackup && showBackupWarning &&
-            <BackupWarningBanner
+            <WalletBanner
+              description={getLocale('braveWalletBackupWarningText')}
               onDismiss={onDismissBackupWarning}
-              onBackup={onShowBackup}
+              onClick={onShowBackup}
+              bannerType='danger'
+              buttonText={getLocale('braveWalletBackupButton')}
             />
           }
         </>
@@ -206,7 +229,7 @@ const CryptoStoryView = (props: Props) => {
       {selectedTab === 'apps' &&
         <>
           <SearchBar
-            placeholder={locale.searchText}
+            placeholder={getLocale('braveWalletSearchText')}
             action={filterList}
           />
           <AppList
@@ -273,7 +296,7 @@ const CryptoStoryView = (props: Props) => {
       {showAddModal &&
         <AddAccountModal
           accounts={accounts}
-          title={locale.addAccount}
+          title={getLocale('braveWalletAddAccount')}
           onClose={onCloseAddModal}
           onCreateAccount={onCreateAccount}
           onImportAccount={onImportAccount}

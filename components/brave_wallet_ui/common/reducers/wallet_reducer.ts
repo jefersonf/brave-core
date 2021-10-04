@@ -21,7 +21,8 @@ import {
   kMainnetChainId,
   TransactionInfo,
   TransactionStatus,
-  TransactionListInfo
+  TransactionListInfo,
+  DefaultWallet
 } from '../../constants/types'
 import {
   NewUnapprovedTxAdded,
@@ -63,7 +64,8 @@ const defaultState: WalletState = {
   selectedPortfolioTimeline: AssetPriceTimeframe.OneDay,
   networkList: [],
   transactionSpotPrices: [],
-  addUserAssetError: false
+  addUserAssetError: false,
+  defaultWallet: DefaultWallet.BraveWallet
 }
 
 const reducer = createReducer<WalletState>({}, defaultState)
@@ -175,7 +177,7 @@ reducer.on(WalletActions.tokenBalancesUpdated, (state: any, payload: GetERC20Tok
       let assetBalance = '0'
       let fiatBalance = '0'
 
-      if (userVisibleTokensInfo[tokenIndex].contractAddress === 'eth') {
+      if (userVisibleTokensInfo[tokenIndex].contractAddress === '') {
         assetBalance = account.balance
         fiatBalance = account.fiatBalance
       } else if (info.success) {
@@ -314,6 +316,13 @@ reducer.on(WalletActions.addUserAssetError, (state: any, payload: boolean) => {
   return {
     ...state,
     addUserAssetError: payload
+  }
+})
+
+reducer.on(WalletActions.defaultWalletUpdated, (state: any, payload: DefaultWallet) => {
+  return {
+    ...state,
+    defaultWallet: payload
   }
 })
 

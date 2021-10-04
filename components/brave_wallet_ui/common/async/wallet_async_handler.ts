@@ -4,6 +4,7 @@
 // you can obtain one at http://mozilla.org/MPL/2.0/.
 
 import { MiddlewareAPI, Dispatch, AnyAction } from 'redux'
+import { SimpleActionCreator } from 'redux-act'
 import AsyncActionHandler from '../../../common/AsyncActionHandler'
 import * as WalletActions from '../actions/wallet_actions'
 import {
@@ -12,7 +13,8 @@ import {
   InitializedPayloadType,
   AddUserAssetPayloadType,
   SetUserAssetVisiblePayloadType,
-  RemoveUserAssetPayloadType
+  RemoveUserAssetPayloadType,
+  SwapParamsPayloadType
 } from '../constants/action_types'
 import {
   AppObjectType,
@@ -24,14 +26,18 @@ import {
   SendTransactionParams,
   TransactionInfo,
   WalletAccountType,
-  ER20TransferParams
+  ER20TransferParams,
+  SwapErrorResponse,
+  SwapResponse
 } from '../../constants/types'
 import { GetNetworkInfo } from '../../utils/network-utils'
-import { formatBalance } from '../../utils/format-balances'
+import { formatBalance, toWeiHex } from '../../utils/format-balances'
 import {
   HardwareWalletAccount,
   HardwareWalletConnectOpts
 } from '../../components/desktop/popup-modals/add-account-modal/hardware-wallet-connect/types'
+import getSwapConfig from '../../constants/swap.config'
+import { hexStrToNumberArray } from '../../utils/hex-utils'
 
 type Store = MiddlewareAPI<Dispatch<AnyAction>, any>
 
@@ -93,7 +99,12 @@ async function refreshWalletInfo (store: Store) {
   const current = GetNetworkInfo(chainId.chainId, networkList.networks)
   store.dispatch(WalletActions.setNetwork(current))
 
+  // Populate tokens from ERC-20 token registry.
+  store.dispatch(WalletActions.getAllTokensList())
+
   const braveWalletService = apiProxy.braveWalletService
+  const defaultWallet = await braveWalletService.getDefaultWallet()
+  store.dispatch(WalletActions.defaultWalletUpdated(defaultWallet.defaultWallet))
   const visibleTokensInfo = await braveWalletService.getUserAssets(chainId.chainId)
   store.dispatch(WalletActions.setVisibleTokensInfo(visibleTokensInfo.tokens))
 
@@ -259,12 +270,12 @@ handler.on(WalletActions.sendTransaction.getType(), async (store, payload: SendT
   const apiProxy = await getAPIProxy()
 
   const txData = apiProxy.makeTxData(
-      '0x1' /* nonce */,
-      payload.gasPrice || '',  // Estimated by eth_tx_controller if value is ''
-      payload.gas || '',  // Estimated by eth_tx_controller if value is ''
-      payload.to,
-      payload.value,
-      payload.data || []
+    '0x1' /* nonce */,
+    payload.gasPrice || '',  // Estimated by eth_tx_controller if value is ''
+    payload.gas || '',  // Estimated by eth_tx_controller if value is ''
+    payload.to,
+    payload.value,
+    payload.data || []
   )
 
   const addResult = await apiProxy.ethTxController.addUnapprovedTransaction(txData, payload.from)
@@ -335,6 +346,83 @@ export const getBalance = (address: string): Promise<string> => {
     resolve(formatBalance(balance.balance, 18))
   })
 }
+
+// fetchSwapQuoteFactory creates a handler function that can be used with
+// both panel and page actions.
+export const fetchSwapQuoteFactory = (
+  setSwapQuote: SimpleActionCreator<SwapResponse>,
+  setSwapError: SimpleActionCreator<SwapErrorResponse | undefined>
+) => async (store: Store, payload: SwapParamsPayloadType) => {
+  const swapController = (await getAPIProxy()).swapController
+
+  const {
+    fromAsset,
+    fromAssetAmount,
+    toAsset,
+    toAssetAmount,
+    accountAddress,
+    slippageTolerance,
+    full
+  } = payload
+
+  const config = getSwapConfig(payload.networkChainId)
+
+  const swapParams = {
+    takerAddress: accountAddress,
+    sellAmount: fromAssetAmount || '',
+    buyAmount: toAssetAmount || '',
+    buyToken: toAsset.asset.contractAddress || toAsset.asset.symbol,
+    sellToken: fromAsset.asset.contractAddress || fromAsset.asset.symbol,
+    buyTokenPercentageFee: config.buyTokenPercentageFee,
+    slippagePercentage: slippageTolerance.slippage / 100,
+    feeRecipient: config.feeRecipient,
+    gasPrice: ''
+  }
+
+  const quote = await (
+    full ? swapController.getTransactionPayload(swapParams) : swapController.getPriceQuote(swapParams)
+  )
+
+  if (quote.success && quote.response) {
+    await store.dispatch(setSwapError(undefined))
+    await store.dispatch(setSwapQuote(quote.response))
+
+    if (full) {
+      const {
+        to,
+        data,
+        value,
+        estimatedGas,
+        gasPrice
+      } = quote.response
+
+      const params = {
+        from: accountAddress,
+        to,
+        value: toWeiHex(value, 0),
+        gas: toWeiHex(estimatedGas, 0),
+        gasPrice: toWeiHex(gasPrice, 0),
+        data: hexStrToNumberArray(data)
+      }
+
+      store.dispatch(WalletActions.sendTransaction(params))
+    }
+  } else if (quote.errorResponse) {
+    try {
+      const err = JSON.parse(quote.errorResponse) as SwapErrorResponse
+      await store.dispatch(setSwapError(err))
+    } catch (e) {
+      console.error(`[swap] error parsing response: ${e}`)
+    } finally {
+      console.error(`[swap] error querying 0x API: ${quote.errorResponse}`)
+    }
+  }
+}
+
+handler.on(WalletActions.notifyUserInteraction.getType(), async (store) => {
+  const keyringController = (await getAPIProxy()).keyringController
+  await keyringController.notifyUserInteraction()
+})
 
 export default handler.middleware
 

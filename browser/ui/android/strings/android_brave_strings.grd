@@ -287,6 +287,15 @@ This file contains all "about" strings.  It is set to NOT be translated, in tran
       <message name="IDS_SETTINGS_PLAY_YT_VIDEO_IN_BROWSER_ON" desc="Desc for desktop mode in site settings">
         If enabled, videos will be played in Brave instead of corresponding app
       </message>
+      <message name="IDS_AUTOPLAY_TITLE" desc="Title for the Autoplay settings screen [CHAR-LIMIT=32]">
+        Autoplay
+      </message>
+      <message name="IDS_WEBSITE_SETTINGS_CATEGORY_AUTOPLAY_ALLOWED" desc="Summary text explaining that sites are allowed to automatically play muted videos and that it is the recommended setting.">
+        Allow sites to automatically play muted videos (recommended)
+      </message>
+      <message name="IDS_WEBSITE_SETTINGS_ADD_SITE_DESCRIPTION_AUTOPLAY" desc="The description for the allow autoplay of muted videos for website dialog.">
+        Allow autoplay of muted videos for a specific site.
+      </message>
       <message name="IDS_PREFS_SECTION_BRAVE_SHIELDS_GLOBALS" desc="Title for Brave shields global defaults section in the privacy preferences screen">
         Brave shields global defaults
       </message>
@@ -578,6 +587,9 @@ month...
       </message>
       <message name="IDS_BRAVE_UI_BACKUP_WALLET_DESC" desc="A notification message description about backing up the wallet">
         Please backup your Brave wallet.
+      </message>
+      <message name="IDS_BRAVE_WALLET_PORTFOLIO_BALANCE_UPDATING" desc="A placeholder to display for unupdated balance" translateable="false">
+        ...
       </message>
       <message name="IDS_BRAVE_REWARDS_LOCAL_UH_OH" desc="A prefix to a message about a problem">
         Uh oh!
@@ -1798,6 +1810,9 @@ until they verify, or until 90 days have passed.
     <message name="IDS_ADD_ACCOUNT" desc="Brave Wallet account dialog button text">
       Add Account
     </message>
+    <message name="IDS_UPDATE_ACCOUNT" desc="Brave Wallet account dialog button text">
+      Update Account
+    </message>
     <message name="IDS_RECOVERY_PHRASE_ITEM_TEXT" desc="Brave Wallet onboarding text">
       <ph name="NUMBER">%1$s</ph>. <ph name="RECOVERY_PHRASE">%2$s</ph>
     </message>
@@ -1856,22 +1871,37 @@ until they verify, or until 90 days have passed.
       Account recovery failed. Please try again.
     </message>
     <message name="IDS_MAINNET" desc="Brave Wallet network selection button text(network name)" translateable="false">
-      Mainnet
+      Ethereum Mainnet
     </message>
     <message name="IDS_RINKEBY" desc="Brave Wallet network selection button text(network name)" translateable="false">
-      Rinkeby
+      Rinkeby Test Network
     </message>
     <message name="IDS_ROPSTEN" desc="Brave Wallet network selection button text(network name)" translateable="false">
-      Ropsten
+      Ropsten Test Network
     </message>
     <message name="IDS_GOERLI" desc="Brave Wallet network selection button text(network name)" translateable="false">
-      Goerli
+      Goerli Test Network
     </message>
     <message name="IDS_KOVAN" desc="Brave Wallet network selection button text(network name)" translateable="false">
-      Kovan
+      Kovan Test Network
     </message>
     <message name="IDS_LOCALHOST" desc="Brave Wallet network selection button text(network name)" translateable="false">
       Localhost
+    </message>
+    <message name="IDS_MAINNET_SHORT" desc="Brave Wallet network selection button text(network name short)" translateable="false">
+      Mainnet
+    </message>
+    <message name="IDS_RINKEBY_SHORT" desc="Brave Wallet network selection button text(network name short)" translateable="false">
+      Rinkeby
+    </message>
+    <message name="IDS_ROPSTEN_SHORT" desc="Brave Wallet network selection button text(network name short)" translateable="false">
+      Ropsten
+    </message>
+    <message name="IDS_GOERLI_SHORT" desc="Brave Wallet network selection button text(network name short)" translateable="false">
+      Goerli
+    </message>
+    <message name="IDS_KOVAN_SHORT" desc="Brave Wallet network selection button text(network name short)" translateable="false">
+      Kovan
     </message>
     <message name="IDS_MARKET_PRICE_IN" desc="Brave Wallet buy-send-swap section text">
       Market Price in ETH
@@ -1960,9 +1990,6 @@ until they verify, or until 90 days have passed.
     </message>
     <message name="IDS_DETAILS" desc="Brave wallet accounts text">
       Details
-    </message>
-    <message name="IDS_EDIT" desc="Brave wallet accounts text">
-      Edit
     </message>
     <message name="IDS_ACCOUNT_DETAILS" desc="Brave wallet accounts text">
       Account Details
@@ -2113,11 +2140,8 @@ If you don't accept this request, VPN will not reconnect and your internet conne
     <message name="IDS_HOST" desc="Brave VPN settings section text">
       Host
     </message>
-    <message name="IDS_LOCATION" desc="Brave VPN settings section text">
-      Location
-    </message>
     <message name="IDS_CHANGE_LOCATION" desc="Brave VPN settings section text">
-      Change Location
+      Location
     </message>
     <message name="IDS_RESET_CONFIGURATION" desc="Brave VPN settings section text">
       Reset Configuration
@@ -2145,6 +2169,9 @@ If you don't accept this request, VPN will not reconnect and your internet conne
     </message>
     <message name="IDS_APP_VERSION" desc="Brave Vpn support text">
       App Version
+    </message>
+    <message name="IDS_APP_RECEIPT" desc="Brave Vpn support text">
+      App Receipt
     </message>
     <message name="IDS_TIMEZONE" desc="Brave Vpn support text">
       Timezone
@@ -2191,8 +2218,11 @@ If you don't accept this request, VPN will not reconnect and your internet conne
     <message name="IDS_AUTOMATIC" desc="Brave Vpn default server location text">
       Automatic
     </message>
-    <message name="IDS_VPN_LOADING_TEXT" desc="Brave Vpn loading text">
-      Loading. Please wait...
+    <message name="IDS_VPN_CONNECT_TEXT" desc="Brave Vpn loading text">
+      Connecting to your server. Should only take a moment...
+    </message>
+    <message name="IDS_VPN_DISCONNECT_TEXT" desc="Brave Vpn loading text">
+      Disconnecting from your server. Should only take a moment...
     </message>
     <message name="IDS_SUBSCRIPTION_CONSUMED" desc="Brave Vpn in app purchase message">
       Subscription successfully consumed
@@ -2259,6 +2289,24 @@ If you don't accept this request, VPN will not reconnect and your internet conne
     </message>
     <message name="IDS_DISABLE_SHARING_HUB" desc="Menu item for disabling sharing hub.">
       Disable Sharing Hub
+    </message>
+    <message name="IDS_EDIT" desc="Brave wallet accounts text">
+      Edit
+    </message>
+    <message name="IDS_UPDATE" desc="Brave wallet accounts text">
+      Update
+    </message>
+    <message name="IDS_ACCOUNT_UPDATE_FAILED" desc="Brave Wallet account update error text">
+      Account update failed.
+    </message>
+    <message name="IDS_ACCOUNT_NAME_EMPTY_ERROR" desc="Brave Wallet empty account error text">
+      Account name can't be empty.
+    </message>
+    <message name="IDS_INCORRECT_PASSWORD_ERROR" desc="Brave Wallet incorrect password error text">
+      Incorrect password
+    </message>
+    <message name="IDS_CHOOSE_A_FILE" desc="Brave wallet accounts text">
+      Choose a file
     </message>
     </messages>
   </release>

@@ -147,8 +147,6 @@ test("brave_unit_tests") {
     "//components/sync_device_info/device_info_sync_bridge_unittest.cc",
   ]
 
-  defines = brave_service_key_defines
-
   deps = [
     ":crypto_unittests",
     ":test_support",
@@ -292,6 +290,7 @@ test("brave_unit_tests") {
     sources += [
       "../utility/importer/chrome_importer_unittest.cc",
       "//brave/app/brave_command_line_helper_unittest.cc",
+      "//brave/browser/profiles/brave_profile_manager_unittest.cc",
       "//brave/browser/resources/settings/brandcode_config_fetcher_unittest.cc",
       "//brave/browser/resources/settings/reset_report_uploader_unittest.cc",
       "//brave/browser/themes/brave_theme_service_unittest.cc",
@@ -591,6 +590,7 @@ if (!is_android) {
     sources = [
       "//brave/app/brave_main_delegate_browsertest.cc",
       "//brave/app/brave_main_delegate_runtime_flags_browsertest.cc",
+      "//brave/browser/brave_ads/request_ads_enabled_api_browsertest.cc",
       "//brave/browser/brave_content_browser_client_browsertest.cc",
       "//brave/browser/brave_prefs_browsertest.cc",
       "//brave/browser/brave_resources_browsertest.cc",
@@ -776,7 +776,6 @@ if (!is_android) {
 
     if (brave_wallet_enabled) {
       sources += [
-        "//brave/browser/brave_wallet/asset_ratio_controller_browsertest.cc",
         "//brave/browser/brave_wallet/brave_wallet_ethereum_chain_browsertest.cc",
         "//brave/browser/brave_wallet/brave_wallet_event_emitter_browsertest.cc",
         "//brave/browser/brave_wallet/brave_wallet_tab_helper_browsertest.cc",
@@ -1146,6 +1145,7 @@ if (is_android) {
       "//chrome/browser/user_education:java",
       "//chrome/test/android:chrome_java_test_support",
       "//components/browser_ui/bottomsheet/android:java",
+      "//components/browser_ui/site_settings/android:java",
       "//components/browser_ui/widget/android:java",
       "//components/embedder_support/android:browser_context_java",
       "//components/password_manager/core/browser:password_manager_java_enums",

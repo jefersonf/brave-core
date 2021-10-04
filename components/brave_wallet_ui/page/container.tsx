@@ -31,10 +31,6 @@ import {
   WalletPageState,
   AssetPriceTimeframe,
   AccountAssetOptionType,
-  OrderTypes,
-  SlippagePresetObjectType,
-  ExpirationPresetObjectType,
-  ToOrFromType,
   WalletAccountType,
   TokenInfo,
   UpdateAccountNamePayloadType,
@@ -49,18 +45,16 @@ import BackupWallet from '../stories/screens/backup-wallet'
 import { formatPrices } from '../utils/format-prices'
 import { BuyAssetUrl } from '../utils/buy-asset-url'
 import { convertMojoTimeToJS } from '../utils/mojo-time'
-import { AssetOptions, AccountAssetOptions } from '../options/asset-options'
 import { WyreAccountAssetOptions } from '../options/wyre-asset-options'
-import { SlippagePresetOptions } from '../options/slippage-preset-options'
-import { ExpirationPresetOptions } from '../options/expiration-preset-options'
 import {
   HardwareWalletAccount
 } from '../components/desktop/popup-modals/add-account-modal/hardware-wallet-connect/types'
 
 import { onConnectHardwareWallet, getBalance } from '../common/async/wallet_async_handler'
 
-import { formatBalance, toWei, toWeiHex } from '../utils/format-balances'
-import { debounce } from '../../common/debounce'
+import { formatBalance, toWeiHex } from '../utils/format-balances'
+import { useSwap, useAssets, useTimeout, useBalance } from '../common/hooks'
+import { stripERC20TokenImageURL } from '../utils/string-utils'
 
 type Props = {
   wallet: WalletState
@@ -84,13 +78,12 @@ function Container (props: Props) {
     selectedNetwork,
     selectedAccount,
     hasInitialized,
-    userVisibleTokensInfo,
-    fullTokenList,
     portfolioPriceHistory,
     selectedPortfolioTimeline,
     isFetchingPortfolioPriceHistory,
     transactionSpotPrices,
-    addUserAssetError
+    addUserAssetError,
+    defaultWallet
   } = props.wallet
 
   // Page Props
@@ -107,137 +100,63 @@ function Container (props: Props) {
     privateKey,
     importError,
     showAddModal,
-    swapQuote,
     isCryptoWalletsInstalled,
-    isMetaMaskInstalled
+    isMetaMaskInstalled,
+    swapQuote,
+    swapError
   } = props.page
 
   // const [view, setView] = React.useState<NavTypes>('crypto')
   const [inputValue, setInputValue] = React.useState<string>('')
-  const [exchangeRate, setExchangeRate] = React.useState('')
   const [toAddress, setToAddress] = React.useState('')
   const [buyAmount, setBuyAmount] = React.useState('')
   const [sendAmount, setSendAmount] = React.useState('')
-  const [fromAmount, setFromAmount] = React.useState('')
-  const [toAmount, setToAmount] = React.useState('')
-  const [slippageTolerance, setSlippageTolerance] = React.useState<SlippagePresetObjectType>(SlippagePresetOptions[0])
-  const [orderExpiration, setOrderExpiration] = React.useState<ExpirationPresetObjectType>(ExpirationPresetOptions[0])
-  const [orderType, setOrderType] = React.useState<OrderTypes>('market')
   const [selectedWidgetTab, setSelectedWidgetTab] = React.useState<BuySendSwapTypes>('buy')
 
-  // TODO (DOUGLAS): This needs to be set up in the Reducer in a future PR
-  const [fromAsset, setFromAsset] = React.useState<AccountAssetOptionType>(AccountAssetOptions[0])
-  const [toAsset, setToAsset] = React.useState<AccountAssetOptionType>(AccountAssetOptions[1])
+  const notifyUserInteraction = () => {
+    props.walletActions.notifyUserInteraction()
+  }
+  useTimeout(notifyUserInteraction, isWalletLocked)
 
-  React.useEffect(() => {
-    if (!swapQuote) {
-      setFromAmount('')
-      setToAmount('')
-      return
-    }
+  const {
+    tokenOptions,
+    assetOptions,
+    userVisibleTokenOptions,
+    sendAssetOptions
+  } = useAssets(selectedAccount, props.wallet.fullTokenList, props.wallet.userVisibleTokensInfo)
 
-    const { buyAmount, sellAmount, price } = swapQuote
-    setFromAmount(formatBalance(sellAmount, fromAsset.asset.decimals))
-    setToAmount(formatBalance(buyAmount, toAsset.asset.decimals))
-    setExchangeRate(formatBalance(price, 0))
-  }, [swapQuote])
-
-  const onSwapParamsChange = React.useCallback((
-    state: {
-      fromAmount: string,
-      toAmount: string
-    },
-    overrides: {
-      toOrFrom: ToOrFromType
-      asset?: AccountAssetOptionType
-      amount?: string
-      slippageTolerance?: SlippagePresetObjectType
-    },
-    full: boolean = false
-  ) => {
-    if (selectedWidgetTab !== 'swap') {
-      return
-    }
-
-    let fromAmountWei
-    let toAmountWei
-
-    if (overrides.toOrFrom === 'from') {
-      fromAmountWei = toWei(
-        overrides.amount ?? state.fromAmount,
-        fromAsset.asset.decimals
-      )
-    }
-
-    if (overrides.toOrFrom === 'to') {
-      toAmountWei = toWei(
-        overrides.amount ?? state.toAmount,
-        toAsset.asset.decimals
-      )
-    }
-
-    if (overrides.toOrFrom === 'to' && toAmountWei === '0') {
-      setFromAmount('')
-      return
-    }
-
-    if (overrides.toOrFrom === 'from' && fromAmountWei === '0') {
-      setToAmount('')
-      return
-    }
-
-    props.walletPageActions.fetchSwapQuote({
-      fromAsset: overrides.toOrFrom === 'from' && overrides.asset !== undefined ? overrides.asset : fromAsset,
-      fromAssetAmount: fromAmountWei,
-      toAsset: overrides.toOrFrom === 'to' && overrides.asset !== undefined ? overrides.asset : toAsset,
-      toAssetAmount: toAmountWei,
-      accountAddress: selectedAccount.address,
-      slippageTolerance: overrides.slippageTolerance ?? slippageTolerance,
-      networkChainId: selectedNetwork.chainId,
-      full
-    })
-  }, [selectedWidgetTab, selectedAccount, selectedNetwork])
-
-  const onSwapQuoteRefresh = () => onSwapParamsChange(
-    { fromAmount, toAmount },
-    { toOrFrom: 'from' }
+  const {
+    exchangeRate,
+    fromAmount,
+    fromAsset,
+    isSwapButtonDisabled,
+    orderExpiration,
+    orderType,
+    slippageTolerance,
+    swapValidationError,
+    toAmount,
+    toAsset,
+    onToggleOrderType,
+    onSwapQuoteRefresh,
+    onSetToAmount,
+    onSetFromAmount,
+    flipSwapAssets,
+    onSubmitSwap,
+    onSetExchangeRate,
+    onSelectExpiration,
+    onSelectSlippageTolerance,
+    onSelectTransactAsset
+  } = useSwap(
+    selectedAccount,
+    selectedNetwork,
+    props.walletPageActions.fetchPageSwapQuote,
+    assetOptions,
+    swapQuote,
+    swapError
   )
 
-  const onSwapParamsChangeDebounced = React.useCallback(
-    // @ts-ignore
-    debounce(onSwapParamsChange, 400),
-    [onSwapParamsChange]
-  )
-
-  const isSwapButtonDisabled = () => {
-    if (!swapQuote) {
-      return true
-    }
-
-    if (toWei(toAmount, toAsset.asset.decimals) === '0') {
-      return true
-    }
-
-    return toWei(fromAmount, fromAsset.asset.decimals) === '0'
-  }
-
-  const onSelectTransactAsset = (asset: AccountAssetOptionType, toOrFrom: ToOrFromType) => {
-    if (toOrFrom === 'from') {
-      setFromAsset(asset)
-    } else {
-      setToAsset(asset)
-    }
-
-    onSwapParamsChange(
-      { fromAmount, toAmount },
-      { toOrFrom, asset }
-    )
-  }
-
-  const flipSwapAssets = () => {
-    setFromAsset(toAsset)
-    setToAsset(fromAsset)
-  }
+  const getSelectedAccountBalance = useBalance(selectedAccount)
+  const { assetBalance: fromAssetBalance } = getSelectedAccountBalance(fromAsset)
 
   const onToggleShowRestore = React.useCallback(() => {
     if (walletLocation === WalletRoutes.Restore) {
@@ -255,48 +174,8 @@ function Container (props: Props) {
     setBuyAmount(value)
   }
 
-  const onSetFromAmount = (value: string) => {
-    setFromAmount(value)
-    onSwapParamsChangeDebounced(
-      { fromAmount, toAmount },
-      { toOrFrom: 'from', amount: value }
-    )
-  }
-
   const onSetSendAmount = (value: string) => {
     setSendAmount(value)
-  }
-
-  const onSetToAmount = (value: string) => {
-    setToAmount(value)
-    onSwapParamsChangeDebounced(
-      { fromAmount, toAmount },
-      { toOrFrom: 'to', amount: value }
-    )
-  }
-
-  const onSetExchangeRate = (value: string) => {
-    setExchangeRate(value)
-  }
-
-  const onSelectExpiration = (expiration: ExpirationPresetObjectType) => {
-    setOrderExpiration(expiration)
-  }
-
-  const onSelectSlippageTolerance = (slippage: SlippagePresetObjectType) => {
-    setSlippageTolerance(slippage)
-    onSwapParamsChange(
-      { fromAmount, toAmount },
-      { toOrFrom: 'from', slippageTolerance: slippage }
-    )
-  }
-
-  const onToggleOrderType = () => {
-    if (orderType === 'market') {
-      setOrderType('limit')
-    } else {
-      setOrderType('market')
-    }
   }
 
   const onSelectAccount = (account: WalletAccountType) => {
@@ -397,18 +276,12 @@ function Container (props: Props) {
 
   // This looks at the users asset list and returns the full balance for each asset
   const userAssetList = React.useMemo(() => {
-    const newListWithIcon = userVisibleTokensInfo.map((asset) => {
-      const icon = AssetOptions.find((a) => asset.symbol === a.symbol)?.icon
-      return { ...asset, icon: icon }
-    })
-    return newListWithIcon.map((asset) => {
-      return {
-        asset: asset,
-        assetBalance: fullAssetBalance(asset).toString(),
-        fiatBalance: fullAssetFiatBalance(asset).toString()
-      }
-    })
-  }, [userVisibleTokensInfo, accounts])
+    return userVisibleTokenOptions.map((asset) => ({
+      asset: asset,
+      assetBalance: fullAssetBalance(asset).toString(),
+      fiatBalance: fullAssetFiatBalance(asset).toString()
+    }))
+  }, [userVisibleTokenOptions, accounts])
 
   const onSelectAsset = (asset: TokenInfo) => {
     props.walletPageActions.selectAsset({ asset: asset, timeFrame: selectedTimeline })
@@ -443,23 +316,15 @@ function Container (props: Props) {
     return formated
   }, [selectedAssetPriceHistory])
 
-  const fromAssetBalance = React.useMemo(() => {
-    if (!selectedAccount) {
-      return '0'
-    }
-    const token = selectedAccount.tokens ? selectedAccount.tokens.find((token) => token.asset.symbol === fromAsset.asset.symbol) : undefined
-    return token ? formatBalance(token.assetBalance, token.asset.decimals) : '0'
-  }, [accounts, selectedAccount, fromAsset])
-
   const onSelectPresetFromAmount = (percent: number) => {
-    const asset = userVisibleTokensInfo.find((asset) => asset.symbol === fromAsset.asset.symbol)
+    const asset = userVisibleTokenOptions.find((asset) => asset.symbol === fromAsset.asset.symbol)
     const amount = Number(fromAsset.assetBalance) * percent
     const formatedAmmount = formatBalance(amount.toString(), asset?.decimals ?? 18)
-    setFromAmount(formatedAmmount)
+    onSetFromAmount(formatedAmmount)
   }
 
   const onSelectPresetSendAmount = (percent: number) => {
-    const asset = userVisibleTokensInfo.find((asset) => asset.symbol === fromAsset.asset.symbol)
+    const asset = userVisibleTokenOptions.find((asset) => asset.symbol === fromAsset.asset.symbol)
     const amount = Number(fromAsset.assetBalance) * percent
     const formatedAmmount = formatBalance(amount.toString(), asset?.decimals ?? 18)
     setSendAmount(formatedAmmount)
@@ -512,14 +377,6 @@ function Container (props: Props) {
     return result ? { success: true } : { success: false }
   }
 
-  const onSubmitSwap = () => {
-    onSwapParamsChange(
-      { fromAmount, toAmount },
-      { toOrFrom: 'from' },
-      true
-    )
-  }
-
   const onSubmitSend = () => {
     fromAsset.asset.isErc20 && props.walletActions.sendERC20Transfer({
       from: selectedAccount.address,
@@ -564,16 +421,26 @@ function Container (props: Props) {
   }
 
   const onAddUserAsset = (token: TokenInfo) => {
-    props.walletActions.addUserAsset({ token: token, chainId: selectedNetwork.chainId })
+    props.walletActions.addUserAsset({
+      token: {
+        ...token,
+        logo: stripERC20TokenImageURL(token.logo)
+      },
+      chainId: selectedNetwork.chainId
+    })
   }
 
   const onRemoveUserAsset = (contractAddress: string) => {
     props.walletActions.removeUserAsset({ contractAddress, chainId: selectedNetwork.chainId })
   }
 
+  const onOpenWalletSettings = () => {
+    props.walletPageActions.openWalletSettings()
+  }
+
   React.useEffect(() => {
     // Creates a list of Accepted Portfolio Routes
-    const acceptedPortfolioRoutes = userVisibleTokensInfo.map((token) => {
+    const acceptedPortfolioRoutes = userVisibleTokenOptions.map((token) => {
       return `${WalletRoutes.Portfolio}/${token.symbol}`
     })
     // Creates a list of Accepted Account Routes
@@ -611,7 +478,7 @@ function Container (props: Props) {
     hasInitialized,
     setupStillInProgress,
     selectedAsset,
-    userVisibleTokensInfo,
+    userVisibleTokenOptions,
     accounts
   ])
 
@@ -688,7 +555,7 @@ function Container (props: Props) {
                 selectedPortfolioTimeline={selectedPortfolioTimeline}
                 transactions={transactions}
                 userAssetList={userAssetList}
-                fullAssetList={fullTokenList}
+                fullAssetList={tokenOptions}
                 onConnectHardwareWallet={onConnectHardwareWallet}
                 onCreateAccount={onCreateAccount}
                 onImportAccount={onImportAccount}
@@ -709,12 +576,14 @@ function Container (props: Props) {
                 hasImportError={importError}
                 onAddHardwareAccounts={onAddHardwareAccounts}
                 transactionSpotPrices={transactionSpotPrices}
-                userVisibleTokensInfo={userVisibleTokensInfo}
+                userVisibleTokensInfo={userVisibleTokenOptions}
                 getBalance={getBalance}
                 onAddUserAsset={onAddUserAsset}
                 onSetUserAssetVisible={onSetUserAssetVisible}
                 onRemoveUserAsset={onRemoveUserAsset}
                 addUserAssetError={addUserAssetError}
+                defaultWallet={defaultWallet}
+                onOpenWalletSettings={onOpenWalletSettings}
               />
             }
           </Route>
@@ -740,11 +609,12 @@ function Container (props: Props) {
             toAssetBalance='0'
             orderExpiration={orderExpiration}
             slippageTolerance={slippageTolerance}
+            swapValidationError={swapValidationError}
             toAddress={toAddress}
             buyAssetOptions={WyreAccountAssetOptions}
-            sendAssetOptions={selectedAccount.tokens}
-            swapAssetOptions={AccountAssetOptions}
-            isSwapSubmitDisabled={isSwapButtonDisabled()}
+            sendAssetOptions={sendAssetOptions}
+            swapAssetOptions={assetOptions}
+            isSwapSubmitDisabled={isSwapButtonDisabled}
             onSetBuyAmount={onSetBuyAmount}
             onSetToAddress={onSetToAddress}
             onSelectExpiration={onSelectExpiration}

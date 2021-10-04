@@ -9,9 +9,12 @@
 #include <string>
 #include <vector>
 
+#include "base/containers/flat_map.h"
 #include "base/scoped_observation.h"
+#include "base/timer/timer.h"
 #include "brave/components/brave_vpn/brave_vpn.mojom.h"
 #include "brave/components/brave_vpn/brave_vpn_connection_info.h"
+#include "brave/components/brave_vpn/brave_vpn_data_types.h"
 #include "brave/components/brave_vpn/brave_vpn_os_connection_api.h"
 #include "brave/components/brave_vpn/brave_vpn_service.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -24,7 +27,8 @@ class Value;
 
 class PrefService;
 
-typedef brave_vpn::mojom::ConnectionState ConnectionState;
+using ConnectionState = brave_vpn::mojom::ConnectionState;
+using PurchasedState = brave_vpn::mojom::PurchasedState;
 
 class BraveVpnServiceDesktop
     : public BraveVpnService,
@@ -41,9 +45,15 @@ class BraveVpnServiceDesktop
 
   void RemoveVPNConnnection();
 
-  bool is_connected() const { return state_ == ConnectionState::CONNECTED; }
-  bool is_purchased_user() const { return is_purchased_user_; }
-  ConnectionState connection_state() const { return state_; }
+  bool is_connected() const {
+    return connection_state_ == ConnectionState::CONNECTED;
+  }
+
+  bool is_purchased_user() const {
+    return purchased_state_ == PurchasedState::PURCHASED;
+  }
+
+  ConnectionState connection_state() const { return connection_state_; }
 
   void CheckPurchasedStatus();
   void ToggleConnection();
@@ -55,6 +65,7 @@ class BraveVpnServiceDesktop
   void AddObserver(
       mojo::PendingRemote<brave_vpn::mojom::ServiceObserver> observer) override;
   void GetConnectionState(GetConnectionStateCallback callback) override;
+  void GetPurchasedState(GetPurchasedStateCallback callback) override;
   void Connect() override;
   void Disconnect() override;
   void CreateVPNConnection() override;
@@ -67,6 +78,8 @@ class BraveVpnServiceDesktop
   friend class BraveAppMenuBrowserTest;
   friend class BraveBrowserCommandControllerTest;
   FRIEND_TEST_ALL_PREFIXES(BraveVPNTest, RegionDataTest);
+  FRIEND_TEST_ALL_PREFIXES(BraveVPNTest, HostnamesTest);
+  FRIEND_TEST_ALL_PREFIXES(BraveVPNTest, LoadRegionDataFromPrefsTest);
 
   // BraveVpnService overrides:
   void Shutdown() override;
@@ -81,32 +94,41 @@ class BraveVpnServiceDesktop
   void OnIsDisconnecting(const std::string& name) override;
 
   brave_vpn::BraveVPNConnectionInfo GetConnectionInfo();
+  void LoadCachedRegionData();
   void FetchRegionData();
   void OnFetchRegionList(const std::string& region_list, bool success);
-  void ParseAndCacheRegionList(base::Value region_value);
+  bool ParseAndCacheRegionList(base::Value region_value);
   void OnFetchTimezones(const std::string& timezones_list, bool success);
-  void ParseAndCacheDefaultRegionName(base::Value timezons_value);
+  void ParseAndCacheDeviceRegionName(base::Value timezons_value);
+  void FetchHostnamesForRegion(const std::string& name);
+  void OnFetchHostnames(const std::string& region,
+                        const std::string& hostnames,
+                        bool success);
+  void ParseAndCacheHostnames(const std::string& region,
+                              base::Value hostnames_value);
   void SetDeviceRegion(const std::string& name);
   void SetFallbackDeviceRegion();
+  void SetDeviceRegion(const brave_vpn::mojom::Region& region);
+
   std::string GetCurrentTimeZone();
+  void SetPurchasedState(PurchasedState state);
 
   void set_test_timezone(const std::string& timezone) {
     test_timezone_ = timezone;
   }
-  void set_is_purchased_user_for_test(bool purchased) {
-    is_purchased_user_ = purchased;
-  }
 
   PrefService* prefs_ = nullptr;
+  base::flat_map<std::string, std::vector<brave_vpn::Hostname>> hostnames_;
   std::vector<brave_vpn::mojom::Region> regions_;
   brave_vpn::mojom::Region device_region_;
-  ConnectionState state_ = ConnectionState::DISCONNECTED;
-  bool is_purchased_user_ = false;
+  ConnectionState connection_state_ = ConnectionState::DISCONNECTED;
+  PurchasedState purchased_state_ = PurchasedState::NOT_PURCHASED;
   base::ScopedObservation<brave_vpn::BraveVPNOSConnectionAPI,
                           brave_vpn::BraveVPNOSConnectionAPI::Observer>
       observed_{this};
   mojo::ReceiverSet<brave_vpn::mojom::ServiceHandler> receivers_;
   mojo::RemoteSet<brave_vpn::mojom::ServiceObserver> observers_;
+  base::RepeatingTimer region_data_update_timer_;
   std::string test_timezone_;
 };
 

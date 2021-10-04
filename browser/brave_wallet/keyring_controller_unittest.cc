@@ -42,7 +42,8 @@ const char kMnemonic2[] =
 
 class KeyringControllerUnitTest : public testing::Test {
  public:
-  KeyringControllerUnitTest() {}
+  KeyringControllerUnitTest()
+      : task_environment_(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
   ~KeyringControllerUnitTest() override {}
 
   void GetBooleanCallback(bool value) { bool_value_ = value; }
@@ -74,11 +75,90 @@ class KeyringControllerUnitTest : public testing::Test {
     return value->GetString();
   }
 
+  static absl::optional<std::string> GetSelectedAccount(
+      KeyringController* controller) {
+    absl::optional<std::string> account;
+    base::RunLoop run_loop;
+    controller->GetSelectedAccount(
+        base::BindLambdaForTesting([&](const absl::optional<std::string>& v) {
+          account = v;
+          run_loop.Quit();
+        }));
+    run_loop.Run();
+    return account;
+  }
+
+  static bool SetSelectedAccount(KeyringController* controller,
+                                 const std::string& account) {
+    bool success = false;
+    base::RunLoop run_loop;
+    controller->SetSelectedAccount(account,
+                                   base::BindLambdaForTesting([&](bool v) {
+                                     success = v;
+                                     run_loop.Quit();
+                                   }));
+    run_loop.Run();
+    return success;
+  }
+
+  static absl::optional<std::string> ImportAccount(
+      KeyringController* controller,
+      const std::string& name,
+      const std::string& private_key) {
+    absl::optional<std::string> account;
+    base::RunLoop run_loop;
+    controller->ImportAccount(
+        name, private_key,
+        base::BindLambdaForTesting(
+            [&](bool success, const std::string& address) {
+              if (success) {
+                account = address;
+              }
+            }));
+    return account;
+  }
+
+  static absl::optional<std::string> CreateWallet(KeyringController* controller,
+                                                  const std::string& password) {
+    std::string mnemonic;
+    base::RunLoop run_loop;
+    controller->CreateWallet(
+        password, base::BindLambdaForTesting([&](const std::string& v) {
+          mnemonic = v;
+          run_loop.Quit();
+        }));
+    run_loop.Run();
+    return mnemonic;
+  }
+
+  static void AddHardwareAccount(
+      KeyringController* controller,
+      std::vector<mojom::HardwareWalletAccountPtr> new_accounts) {
+    controller->AddHardwareAccounts(std::move(new_accounts));
+  }
+
+  static bool Unlock(KeyringController* controller,
+                     const std::string& password) {
+    bool success = false;
+    base::RunLoop run_loop;
+    controller->Unlock(password, base::BindLambdaForTesting([&](bool v) {
+                         success = v;
+                         run_loop.Quit();
+                       }));
+    run_loop.Run();
+    return success;
+  }
+
+  static bool Lock(KeyringController* controller) {
+    controller->Lock();
+    return controller->IsLocked();
+  }
+
   bool bool_value() { return bool_value_; }
   const std::string string_value() { return string_value_; }
+  content::BrowserTaskEnvironment task_environment_;
 
  private:
-  content::BrowserTaskEnvironment task_environment_;
   std::unique_ptr<TestingProfile> profile_;
   bool bool_value_;
   std::string string_value_;
@@ -1498,6 +1578,141 @@ TEST_F(KeyringControllerUnitTest, HardwareAccounts) {
   ASSERT_FALSE(GetPrefs()
                    ->GetDictionary(kBraveWalletKeyrings)
                    ->FindPath("hardware.Ledger4235202380"));
+}
+
+TEST_F(KeyringControllerUnitTest, AutoLock) {
+  KeyringController controller(GetPrefs());
+  controller.CreateWallet("brave", base::DoNothing::Once<const std::string&>());
+  base::RunLoop().RunUntilIdle();
+  const std::string mnemonic = controller.GetMnemonicForDefaultKeyringImpl();
+  ASSERT_FALSE(controller.IsLocked());
+
+  // Should not be locked yet after 4 minutes
+  task_environment_.FastForwardBy(base::TimeDelta::FromMinutes(4));
+  ASSERT_FALSE(controller.IsLocked());
+
+  // After the 5th minute, it should be locked
+  task_environment_.FastForwardBy(base::TimeDelta::FromMinutes(1));
+  ASSERT_TRUE(controller.IsLocked());
+  // Locking after it is auto locked won't cause a crash
+  controller.Lock();
+  ASSERT_TRUE(controller.IsLocked());
+
+  // Unlocking will reset the timer
+  controller.Unlock(
+      "brave", base::BindOnce(&KeyringControllerUnitTest::GetBooleanCallback,
+                              base::Unretained(this)));
+  base::RunLoop().RunUntilIdle();
+  ASSERT_FALSE(controller.IsLocked());
+  task_environment_.FastForwardBy(base::TimeDelta::FromMinutes(5));
+  ASSERT_TRUE(controller.IsLocked());
+
+  // Locking before the timer fires won't cause any problems after the
+  // timer fires.
+  controller.Unlock(
+      "brave", base::BindOnce(&KeyringControllerUnitTest::GetBooleanCallback,
+                              base::Unretained(this)));
+  base::RunLoop().RunUntilIdle();
+  ASSERT_FALSE(controller.IsLocked());
+  task_environment_.FastForwardBy(base::TimeDelta::FromMinutes(1));
+  controller.Lock();
+  ASSERT_TRUE(controller.IsLocked());
+  task_environment_.FastForwardBy(base::TimeDelta::FromMinutes(4));
+  ASSERT_TRUE(controller.IsLocked());
+
+  // Restoring keyring will auto lock too
+  controller.Reset();
+  controller.RestoreWallet(mnemonic, "brave", false,
+                           base::DoNothing::Once<bool>());
+  ASSERT_FALSE(controller.IsLocked());
+  task_environment_.FastForwardBy(base::TimeDelta::FromMinutes(6));
+  ASSERT_TRUE(controller.IsLocked());
+
+  // Changing the auto lock pref should reset the timer
+  controller.Unlock(
+      "brave", base::BindOnce(&KeyringControllerUnitTest::GetBooleanCallback,
+                              base::Unretained(this)));
+  ASSERT_FALSE(controller.IsLocked());
+  task_environment_.FastForwardBy(base::TimeDelta::FromMinutes(4));
+  GetPrefs()->SetInteger(kBraveWalletAutoLockMinutes, 3);
+  task_environment_.FastForwardBy(base::TimeDelta::FromMinutes(2));
+  EXPECT_FALSE(controller.IsLocked());
+  task_environment_.FastForwardBy(base::TimeDelta::FromMinutes(1));
+  EXPECT_TRUE(controller.IsLocked());
+
+  // Changing the auto lock pref should reset the timer even if higher
+  // for simplicity of logic
+  controller.Unlock(
+      "brave", base::BindOnce(&KeyringControllerUnitTest::GetBooleanCallback,
+                              base::Unretained(this)));
+  ASSERT_FALSE(controller.IsLocked());
+  task_environment_.FastForwardBy(base::TimeDelta::FromMinutes(2));
+  EXPECT_FALSE(controller.IsLocked());
+  GetPrefs()->SetInteger(kBraveWalletAutoLockMinutes, 10);
+  task_environment_.FastForwardBy(base::TimeDelta::FromMinutes(9));
+  EXPECT_FALSE(controller.IsLocked());
+  task_environment_.FastForwardBy(base::TimeDelta::FromMinutes(1));
+  EXPECT_TRUE(controller.IsLocked());
+}
+
+TEST_F(KeyringControllerUnitTest, NotifyUserInteraction) {
+  KeyringController controller(GetPrefs());
+  CreateWallet(&controller, "brave");
+  ASSERT_FALSE(controller.IsLocked());
+
+  // Notifying of user interaction should keep the wallet unlocked
+  task_environment_.FastForwardBy(base::TimeDelta::FromMinutes(4));
+  controller.NotifyUserInteraction();
+  task_environment_.FastForwardBy(base::TimeDelta::FromMinutes(1));
+  controller.NotifyUserInteraction();
+  task_environment_.FastForwardBy(base::TimeDelta::FromMinutes(4));
+  ASSERT_FALSE(controller.IsLocked());
+  task_environment_.FastForwardBy(base::TimeDelta::FromMinutes(1));
+  ASSERT_TRUE(controller.IsLocked());
+}
+
+TEST_F(KeyringControllerUnitTest, SetSelectedAccount) {
+  KeyringController controller(GetPrefs());
+  CreateWallet(&controller, "brave");
+
+  std::string first_account = controller.default_keyring_->GetAddress(0);
+  controller.AddAccountForDefaultKeyring("Who does number 2 work for");
+  std::string second_account = controller.default_keyring_->GetAddress(1);
+
+  // This does not depend on being locked
+  EXPECT_TRUE(Lock(&controller));
+
+  // No account set as the default
+  EXPECT_EQ(absl::nullopt, GetSelectedAccount(&controller));
+
+  // Setting account to a valid address works
+  EXPECT_TRUE(SetSelectedAccount(&controller, second_account));
+  EXPECT_EQ(second_account, GetSelectedAccount(&controller));
+
+  // Setting account to a non-existing account doesn't work
+  EXPECT_FALSE(SetSelectedAccount(
+      &controller, "0xf83C3cBfF68086F276DD4f87A82DF73B57b21559"));
+  EXPECT_EQ(second_account, GetSelectedAccount(&controller));
+
+  // Can import only when unlocked.
+  // Then check that the account can be set to an imported account.
+  EXPECT_TRUE(Unlock(&controller, "brave"));
+  absl::optional<std::string> imported_account = ImportAccount(
+      &controller, "Best Evil Son",
+      "d118a12a1e3b595d7d9e5599370df4ddc58d246a3ae4a795597e50eb6a32afb5");
+  ASSERT_TRUE(imported_account.has_value());
+  EXPECT_TRUE(Lock(&controller));
+  EXPECT_TRUE(SetSelectedAccount(&controller, *imported_account));
+  EXPECT_EQ(*imported_account, GetSelectedAccount(&controller));
+
+  // Can set hardware account
+  std::vector<mojom::HardwareWalletAccountPtr> new_accounts;
+  std::string hardware_account = "0x1111111111111111111111111111111111111111";
+  new_accounts.push_back(mojom::HardwareWalletAccount::New(
+      hardware_account, "m/44'/60'/1'/0/0", "name 1", "Ledger"));
+  AddHardwareAccount(&controller, std::move(new_accounts));
+  EXPECT_TRUE(SetSelectedAccount(&controller, hardware_account));
+  EXPECT_EQ(hardware_account, GetSelectedAccount(&controller));
 }
 
 }  // namespace brave_wallet

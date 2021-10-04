@@ -10,6 +10,7 @@ import static org.chromium.chrome.browser.crypto_wallet.util.Utils.RESTORE_WALLE
 import static org.chromium.chrome.browser.crypto_wallet.util.Utils.UNLOCK_WALLET_ACTION;
 
 import android.app.SearchManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -25,10 +26,12 @@ import androidx.viewpager.widget.ViewPager;
 import com.google.android.material.tabs.TabLayout;
 
 import org.chromium.base.Log;
+import org.chromium.brave_wallet.mojom.AssetRatioController;
 import org.chromium.brave_wallet.mojom.ErcTokenRegistry;
 import org.chromium.brave_wallet.mojom.EthJsonRpcController;
 import org.chromium.brave_wallet.mojom.KeyringController;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.crypto_wallet.AssetRatioControllerFactory;
 import org.chromium.chrome.browser.crypto_wallet.ERCTokenRegistryFactory;
 import org.chromium.chrome.browser.crypto_wallet.EthJsonRpcControllerFactory;
 import org.chromium.chrome.browser.crypto_wallet.KeyringControllerFactory;
@@ -63,6 +66,7 @@ public class BraveWalletActivity
     private KeyringController mKeyringController;
     private ErcTokenRegistry mErcTokenRegistry;
     private EthJsonRpcController mEthJsonRpcController;
+    private AssetRatioController mAssetRatioController;
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -91,6 +95,13 @@ public class BraveWalletActivity
         setSupportActionBar(toolbar);
 
         swapButton = findViewById(R.id.swap_button);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            // For Android 7 and above use vector images for send/swap button.
+            // For Android 5 and 6 it is a bitmap specified in activity_brave_wallet.xml.
+            swapButton.setImageResource(R.drawable.ic_swap_icon);
+            swapButton.setBackgroundResource(R.drawable.ic_swap_bg);
+        }
+
         swapButton.setOnClickListener(v -> {
             SwapBottomSheetDialogFragment swapBottomSheetDialogFragment =
                     SwapBottomSheetDialogFragment.newInstance();
@@ -141,9 +152,12 @@ public class BraveWalletActivity
     public void onConnectionError(MojoException e) {
         mKeyringController = null;
         mErcTokenRegistry = null;
+        mEthJsonRpcController = null;
+        mAssetRatioController = null;
         InitKeyringController();
         InitErcTokenRegistry();
         InitEthJsonRpcController();
+        InitAssetRatioController();
     }
 
     private void InitKeyringController() {
@@ -171,6 +185,15 @@ public class BraveWalletActivity
                 EthJsonRpcControllerFactory.getInstance().getEthJsonRpcController(this);
     }
 
+    private void InitAssetRatioController() {
+        if (mAssetRatioController != null) {
+            return;
+        }
+
+        mAssetRatioController =
+                AssetRatioControllerFactory.getInstance().getAssetRatioController(this);
+    }
+
     public KeyringController getKeyringController() {
         return mKeyringController;
     }
@@ -183,12 +206,17 @@ public class BraveWalletActivity
         return mEthJsonRpcController;
     }
 
+    public AssetRatioController getAssetRatioController() {
+        return mAssetRatioController;
+    }
+
     @Override
     public void finishNativeInitialization() {
         super.finishNativeInitialization();
         InitKeyringController();
         InitErcTokenRegistry();
         InitEthJsonRpcController();
+        InitAssetRatioController();
         if (Utils.shouldShowCryptoOnboarding()) {
             setNavigationFragments(ONBOARDING_ACTION);
         } else if (mKeyringController != null) {
@@ -268,7 +296,7 @@ public class BraveWalletActivity
 
         ViewPager viewPager = findViewById(R.id.navigation_view_pager);
         CryptoFragmentPageAdapter adapter =
-                new CryptoFragmentPageAdapter(getSupportFragmentManager(), this);
+                new CryptoFragmentPageAdapter(getSupportFragmentManager());
         viewPager.setAdapter(adapter);
         viewPager.setOffscreenPageLimit(adapter.getCount() - 1);
         TabLayout tabLayout = findViewById(R.id.tabs);
@@ -282,9 +310,10 @@ public class BraveWalletActivity
         if (finishOnboarding) {
             setCryptoLayout();
         } else {
-            if (cryptoWalletOnboardingViewPager != null)
+            if (cryptoWalletOnboardingViewPager != null) {
                 cryptoWalletOnboardingViewPager.setCurrentItem(
                         cryptoWalletOnboardingViewPager.getCurrentItem() + 1);
+            }
         }
     }
 

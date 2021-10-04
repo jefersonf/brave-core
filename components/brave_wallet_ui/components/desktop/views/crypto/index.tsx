@@ -12,11 +12,12 @@ import {
   EthereumChain,
   TokenInfo,
   UpdateAccountNamePayloadType,
-  WalletRoutes
+  WalletRoutes,
+  DefaultWallet
 } from '../../../../constants/types'
 import { TopNavOptions } from '../../../../options/top-nav-options'
-import { TopTabNav, BackupWarningBanner, AddAccountModal } from '../../'
-import locale from '../../../../constants/locale'
+import { TopTabNav, WalletBanner, AddAccountModal } from '../../'
+import { getLocale } from '../../../../../common/locale'
 import { PortfolioView, AccountsView } from '../'
 import {
   HardwareWalletAccount,
@@ -50,6 +51,7 @@ export interface Props {
   onAddUserAsset: (token: TokenInfo) => void
   onSetUserAssetVisible: (contractAddress: string, isVisible: boolean) => void
   onRemoveUserAsset: (contractAddress: string) => void
+  onOpenWalletSettings: () => void
   addUserAssetError: boolean
   hasImportError: boolean
   transactionSpotPrices: AssetPriceInfo[]
@@ -73,6 +75,7 @@ export interface Props {
   showAddModal: boolean
   selectedNetwork: EthereumChain
   isFetchingPortfolioPriceHistory: boolean
+  defaultWallet: DefaultWallet
 }
 
 const CryptoView = (props: Props) => {
@@ -99,6 +102,8 @@ const CryptoView = (props: Props) => {
     onAddUserAsset,
     onSetUserAssetVisible,
     onRemoveUserAsset,
+    onOpenWalletSettings,
+    defaultWallet,
     addUserAssetError,
     hasImportError,
     userVisibleTokensInfo,
@@ -125,6 +130,7 @@ const CryptoView = (props: Props) => {
   } = props
   const [hideNav, setHideNav] = React.useState<boolean>(false)
   const [showBackupWarning, setShowBackupWarning] = React.useState<boolean>(needsBackup)
+  const [showDefaultWalletBanner, setShowDefaultWalletBanner] = React.useState<boolean>(needsBackup)
   const [selectedAccount, setSelectedAccount] = React.useState<WalletAccountType>()
 
   let { category, id } = useParams<ParamsType>()
@@ -164,6 +170,10 @@ const CryptoView = (props: Props) => {
     setShowBackupWarning(false)
   }
 
+  const onDismissDefaultWalletBanner = () => {
+    setShowDefaultWalletBanner(false)
+  }
+
   const onClickAddAccount = () => {
     onToggleAddModal()
   }
@@ -198,16 +208,28 @@ const CryptoView = (props: Props) => {
       {!hideNav &&
         <>
           <TopTabNav
-            tabList={TopNavOptions}
+            tabList={TopNavOptions()}
             selectedTab={category}
             onSubmit={tabTo}
             hasMoreButtons={true}
             onLockWallet={onLockWallet}
           />
+          {defaultWallet !== DefaultWallet.BraveWallet && showDefaultWalletBanner &&
+            <WalletBanner
+              onDismiss={onDismissDefaultWalletBanner}
+              onClick={onOpenWalletSettings}
+              bannerType='warning'
+              buttonText={getLocale('braveWalletWalletPopupSettings')}
+              description={getLocale('braveWalletDefaultWalletBanner')}
+            />
+          }
           {needsBackup && showBackupWarning &&
-            <BackupWarningBanner
+            <WalletBanner
               onDismiss={onDismissBackupWarning}
-              onBackup={onShowBackup}
+              onClick={onShowBackup}
+              bannerType='danger'
+              buttonText={getLocale('braveWalletBackupButton')}
+              description={getLocale('braveWalletBackupWarningText')}
             />
           }
         </>
@@ -269,7 +291,7 @@ const CryptoView = (props: Props) => {
       {showAddModal &&
         <AddAccountModal
           accounts={accounts}
-          title={locale.addAccount}
+          title={getLocale('braveWalletAddAccount')}
           onClose={onCloseAddModal}
           onCreateAccount={onCreateAccount}
           onImportAccount={onImportAccount}

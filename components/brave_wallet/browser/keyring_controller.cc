@@ -11,6 +11,7 @@
 #include "base/hash/hash.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/value_iterators.h"
 #include "base/values.h"
 #include "brave/components/brave_wallet/browser/brave_wallet_constants.h"
@@ -20,6 +21,7 @@
 #include "brave/components/brave_wallet/browser/hd_key.h"
 #include "brave/components/brave_wallet/browser/hd_keyring.h"
 #include "brave/components/brave_wallet/browser/pref_names.h"
+#include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "crypto/random.h"
@@ -135,9 +137,19 @@ void SerializeHardwareAccounts(const base::Value* account_value,
 
 KeyringController::KeyringController(PrefService* prefs) : prefs_(prefs) {
   DCHECK(prefs);
+  auto_lock_timer_ = std::make_unique<base::OneShotTimer>();
+
+  pref_change_registrar_ = std::make_unique<PrefChangeRegistrar>();
+  pref_change_registrar_->Init(prefs);
+  pref_change_registrar_->Add(
+      kBraveWalletAutoLockMinutes,
+      base::BindRepeating(&KeyringController::OnAutoLockPreferenceChanged,
+                          base::Unretained(this)));
 }
 
-KeyringController::~KeyringController() {}
+KeyringController::~KeyringController() {
+  auto_lock_timer_.reset();
+}
 
 mojo::PendingRemote<mojom::KeyringController> KeyringController::MakeRemote() {
   mojo::PendingRemote<mojom::KeyringController> remote;
@@ -415,6 +427,7 @@ HDKeyring* KeyringController::CreateDefaultKeyring(
   for (const auto& observer : observers_) {
     observer->KeyringCreated();
   }
+  ResetAutoLockTimer();
 
   return default_keyring_.get();
 }
@@ -503,6 +516,7 @@ HDKeyring* KeyringController::RestoreDefaultKeyring(
   for (const auto& observer : observers_) {
     observer->KeyringRestored();
   }
+  ResetAutoLockTimer();
 
   return default_keyring_.get();
 }
@@ -787,14 +801,13 @@ std::vector<mojom::AccountInfoPtr> KeyringController::GetAccountInfosForKeyring(
   return result;
 }
 
-void KeyringController::GetHardwareAccounts(
-    GetHardwareAccountsCallback callback) {
+std::vector<mojom::AccountInfoPtr>
+KeyringController::GetHardwareAccountsSync() {
   std::vector<mojom::AccountInfoPtr> accounts;
   base::Value hardware_keyrings(base::Value::Type::DICTIONARY);
   const base::Value* value = GetPrefForHardwareKeyringUpdate(prefs_);
   if (!value) {
-    std::move(callback).Run({});
-    return;
+    return {};
   }
 
   for (const auto hw_keyring : value->DictItems()) {
@@ -805,7 +818,12 @@ void KeyringController::GetHardwareAccounts(
     SerializeHardwareAccounts(account_value, &accounts);
   }
 
-  std::move(callback).Run(std::move(accounts));
+  return accounts;
+}
+
+void KeyringController::GetHardwareAccounts(
+    GetHardwareAccountsCallback callback) {
+  std::move(callback).Run(GetHardwareAccountsSync());
 }
 
 // static
@@ -900,6 +918,7 @@ void KeyringController::Lock() {
   for (const auto& observer : observers_) {
     observer->Locked();
   }
+  StopAutoLockTimer();
 }
 
 void KeyringController::Unlock(const std::string& password,
@@ -914,7 +933,13 @@ void KeyringController::Unlock(const std::string& password,
   for (const auto& observer : observers_) {
     observer->Unlocked();
   }
+  ResetAutoLockTimer();
+
   std::move(callback).Run(true);
+}
+
+void KeyringController::OnAutoLockFired() {
+  Lock();
 }
 
 void KeyringController::IsLocked(IsLockedCallback callback) {
@@ -922,10 +947,27 @@ void KeyringController::IsLocked(IsLockedCallback callback) {
 }
 
 void KeyringController::Reset() {
+  StopAutoLockTimer();
   encryptor_.reset();
   default_keyring_.reset();
 
   ClearProfilePrefs(prefs_);
+}
+
+void KeyringController::StopAutoLockTimer() {
+  auto_lock_timer_->Stop();
+}
+
+void KeyringController::ResetAutoLockTimer() {
+  if (auto_lock_timer_->IsRunning()) {
+    auto_lock_timer_->Reset();
+  } else {
+    size_t auto_lock_minutes =
+        (size_t)prefs_->GetInteger(kBraveWalletAutoLockMinutes);
+    auto_lock_timer_->Start(FROM_HERE,
+                            base::TimeDelta::FromMinutes(auto_lock_minutes),
+                            this, &KeyringController::OnAutoLockFired);
+  }
 }
 
 bool KeyringController::GetPrefInBytesForKeyring(const std::string& key,
@@ -1034,6 +1076,47 @@ void KeyringController::AddObserver(
   observers_.Add(std::move(observer));
 }
 
+void KeyringController::NotifyUserInteraction() {
+  auto_lock_timer_->Reset();
+}
+
+void KeyringController::GetSelectedAccount(
+    GetSelectedAccountCallback callback) {
+  std::string address = prefs_->GetString(kBraveWalletSelectedAccount);
+  if (address.empty()) {
+    std::move(callback).Run(absl::nullopt);
+    return;
+  }
+  std::move(callback).Run(address);
+}
+
+void KeyringController::SetSelectedAccount(
+    const std::string& address,
+    SetSelectedAccountCallback callback) {
+  std::vector<mojom::AccountInfoPtr> infos =
+      GetAccountInfosForKeyring(kDefaultKeyringId);
+
+  // Check for matching default and imported account
+  for (const mojom::AccountInfoPtr& info : infos) {
+    if (base::EqualsCaseInsensitiveASCII(info->address, address)) {
+      prefs_->SetString(kBraveWalletSelectedAccount, address);
+      std::move(callback).Run(true);
+      return;
+    }
+  }
+
+  auto hardware_account_info_ptrs = GetHardwareAccountsSync();
+  for (const mojom::AccountInfoPtr& info : hardware_account_info_ptrs) {
+    if (base::EqualsCaseInsensitiveASCII(info->address, address)) {
+      prefs_->SetString(kBraveWalletSelectedAccount, address);
+      std::move(callback).Run(true);
+      return;
+    }
+  }
+
+  std::move(callback).Run(false);
+}
+
 void KeyringController::SetDefaultKeyringDerivedAccountName(
     const std::string& address,
     const std::string& name,
@@ -1097,6 +1180,11 @@ void KeyringController::NotifyAccountsChanged() {
   for (const auto& observer : observers_) {
     observer->AccountsChanged();
   }
+}
+
+void KeyringController::OnAutoLockPreferenceChanged() {
+  StopAutoLockTimer();
+  ResetAutoLockTimer();
 }
 
 }  // namespace brave_wallet

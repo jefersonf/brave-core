@@ -43,7 +43,7 @@ import {
 } from './style'
 import { mockNetworks } from './mock-data/mock-networks'
 import { AccountAssetOptions, NewAssetOptions } from '../options/asset-options'
-
+import './locale'
 export default {
   title: 'Wallet/Extension/Panels',
   parameters: {
@@ -96,8 +96,8 @@ export const _ConfirmTransaction = () => {
     txData: {
       baseData: {
         nonce: '0x1',
-        gasPrice: '7548000000000000',
-        gasLimit: '7548000000000000',
+        gasPrice: '150',
+        gasLimit: '21000',
         to: '2',
         value: '0x15ddf09c97b0000',
         data: new Uint8Array(24)
@@ -109,7 +109,7 @@ export const _ConfirmTransaction = () => {
     txHash: '0xab834bab0000000000000000000000007be8076f4ea4a4ad08075c2508e481d6c946d12b00000000000000000000000073a29a1da971497',
     txStatus: 0,
     txParams: ['address', 'ammount'],
-    txType: TransactionType.ERC20Approve
+    txType: TransactionType.ERC20Transfer
   }
 
   const onConfirmTransaction = () => {
@@ -275,9 +275,9 @@ export const _ConnectedPanel = (args: { locked: boolean }) => {
     accounts[0]
   )
   const [favoriteApps, setFavoriteApps] = React.useState<AppObjectType[]>([
-    AppsList[0].appList[0]
+    AppsList()[0].appList[0]
   ])
-  const [filteredAppsList, setFilteredAppsList] = React.useState<AppsListType[]>(AppsList)
+  const [filteredAppsList, setFilteredAppsList] = React.useState<AppsListType[]>(AppsList())
   const [walletConnected, setWalletConnected] = React.useState<boolean>(true)
   const [hasPasswordError, setHasPasswordError] = React.useState<boolean>(false)
   const [selectedNetwork, setSelectedNetwork] = React.useState<EthereumChain>(mockNetworks[0])
@@ -377,7 +377,7 @@ export const _ConnectedPanel = (args: { locked: boolean }) => {
   }
 
   const filterList = (event: any) => {
-    filterAppList(event, AppsList, setFilteredAppsList)
+    filterAppList(event, AppsList(), setFilteredAppsList)
   }
 
   const unlockWallet = () => {
@@ -535,9 +535,9 @@ export const _SetupWallet = () => {
   }
 
   return (
-    <StyledExtensionWrapper>
+    <StyledExtensionWrapperLonger>
       <WelcomePanel onRestore={onRestore} onSetup={onSetup} />
-    </StyledExtensionWrapper>
+    </StyledExtensionWrapperLonger>
   )
 }
 

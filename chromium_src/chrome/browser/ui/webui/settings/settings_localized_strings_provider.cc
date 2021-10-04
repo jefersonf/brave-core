@@ -8,17 +8,24 @@
 #include "base/stl_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "brave/browser/ui/webui/settings/brave_privacy_handler.h"
+#include "brave/common/pref_names.h"
 #include "brave/common/url_constants.h"
 #include "brave/components/brave_vpn/buildflags/buildflags.h"
+#include "brave/components/brave_wallet/common/buildflags/buildflags.h"
 #include "brave/components/ipfs/ipfs_constants.h"
 #include "brave/components/ipfs/pref_names.h"
 #include "brave/components/sidebar/buildflags/buildflags.h"
 #include "brave/components/version_info/version_info.h"
+#include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/pref_names.h"
 #include "components/grit/brave_components_strings.h"
 #include "components/prefs/pref_service.h"
 #include "extensions/buildflags/buildflags.h"
+
+#if BUILDFLAG(BRAVE_WALLET_ENABLED)
+#include "brave/components/brave_wallet/browser/pref_names.h"
+#endif
 
 namespace settings {
 void BraveAddLocalizedStrings(content::WebUIDataSource*, Profile*);
@@ -247,6 +254,8 @@ void BraveAddCommonStrings(content::WebUIDataSource* html_source,
     {"defaultWalletDesc", IDS_SETTINGS_DEFAULT_WALLET_DESC},
     {"showBravewalletIconOnToolbar",
      IDS_SETTINGS_SHOW_BRAVE_WALLET_ICON_ON_TOOLBAR},
+    {"autoLockMinutes", IDS_SETTINGS_AUTO_LOCK_MINUTES},
+    {"autoLockMinutesDesc", IDS_SETTINGS_AUTO_LOCK_MINUTES_DESC},
     {"googleLoginForExtensionsDesc", IDS_SETTINGS_GOOGLE_LOGIN_FOR_EXTENSIONS},
     {"hangoutsEnabledDesc", IDS_SETTINGS_HANGOUTS_ENABLED_DESC},
     {"mediaRouterEnabledDesc", IDS_SETTINGS_MEDIA_ROUTER_ENABLED_DESC},
@@ -341,6 +350,11 @@ void BraveAddCommonStrings(content::WebUIDataSource* html_source,
               GURL(extension_urls::GetWebstoreExtensionsCategoryURL()),
               g_browser_process->GetApplicationLocale())
               .spec()));
+#if BUILDFLAG(BRAVE_WALLET_ENABLED)
+  html_source->AddString("autoLockMinutesValue",
+                         std::to_string(profile->GetPrefs()->GetInteger(
+                             kBraveWalletAutoLockMinutes)));
+#endif
   html_source->AddString(
       "ipfsStorageMaxValue",
       std::to_string(profile->GetPrefs()->GetInteger(kIpfsStorageMax)));
@@ -373,20 +387,20 @@ void BraveAddAboutStrings(content::WebUIDataSource* html_source,
   html_source->AddString("aboutProductLicense", license);
 }
 
-void BraveAddSocialBlockingLoadTimeData(content::WebUIDataSource* html_source,
-                                        Profile* profile) {
-  html_source->AddBoolean(
-      "signInAllowedOnNextStartupInitialValue",
-      profile->GetPrefs()->GetBoolean(prefs::kSigninAllowedOnNextStartup));
-}
-
 void BraveAddLocalizedStrings(content::WebUIDataSource* html_source,
                               Profile* profile) {
   BraveAddCommonStrings(html_source, profile);
   BraveAddResources(html_source, profile);
   BraveAddAboutStrings(html_source, profile);
   BravePrivacyHandler::AddLoadTimeData(html_source, profile);
-  BraveAddSocialBlockingLoadTimeData(html_source, profile);
+
+  // Load time data for brave://settings/extensions
+  html_source->AddBoolean(
+      "signInAllowedOnNextStartupInitialValue",
+      profile->GetPrefs()->GetBoolean(prefs::kSigninAllowedOnNextStartup));
+
+  html_source->AddBoolean("isMediaRouterEnabled",
+                          media_router::MediaRouterEnabled(profile));
 }
 
 }  // namespace settings

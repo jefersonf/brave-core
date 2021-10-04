@@ -19,7 +19,7 @@ export interface AssetOptionType {
   id: string
   name: string
   symbol: string
-  icon: string
+  logo: string
 }
 
 export interface UserAssetOptionType {
@@ -73,7 +73,11 @@ export type PanelTypes =
   | 'settings'
   | 'expanded'
   | 'assets'
+  | 'signData'
   | 'connectWithSite'
+  | 'connectHardwareWallet'
+  | 'addEthereumChain'
+  | 'approveTransaction'
 
 export type NavTypes =
   | 'crypto'
@@ -170,17 +174,20 @@ export interface WalletState {
   networkList: EthereumChain[]
   transactionSpotPrices: AssetPriceInfo[]
   addUserAssetError: boolean
+  defaultWallet: DefaultWallet
 }
 
 export interface PanelState {
   hasInitialized: boolean
   isConnected: boolean
   connectedSiteOrigin: string
-  selectedPanel: string
+  selectedPanel: PanelTypes
   panelTitle: string
   tabId: number
   connectingAccounts: string[]
   networkPayload: EthereumChain
+  swapQuote?: SwapResponse
+  swapError?: SwapErrorResponse
 }
 
 export interface PageState {
@@ -200,9 +207,10 @@ export interface PageState {
   showIsRestoring: boolean
   importError: boolean
   showAddModal: boolean
-  swapQuote?: SwapResponse
   isCryptoWalletsInstalled: boolean
   isMetaMaskInstalled: boolean
+  swapQuote?: SwapResponse
+  swapError?: SwapErrorResponse
 }
 
 export interface WalletPageState {
@@ -307,11 +315,24 @@ export interface SwapResponse {
   buyTokenToEthRate: string
 }
 
+export interface SwapErrorResponse {
+  code: number,
+  reason: string,
+  validationErrors: { field: string, code: number, reason: string }[]
+}
+
 export interface SwapResponseReturnInfo {
   success: boolean
-  response: SwapResponse | undefined
-  errorResponse: string
+  response?: SwapResponse
+  errorResponse?: string
 }
+
+export type SwapValidationErrorType =
+  | 'insufficientBalance'
+  | 'insufficientEthBalance'
+  | 'insufficientAllowance'
+  | 'insufficientLiquidity'
+  | 'unknownError'
 
 export interface GetNetworkReturnInfo {
   network: EthereumChain
@@ -363,7 +384,6 @@ export interface TokenInfo {
   symbol: string
   decimals: number
   visible?: boolean
-  icon?: string
   logo?: string
 }
 
@@ -446,11 +466,22 @@ export class TxData {
   data: Uint8Array
 }
 
+export class GasEstimation {
+  slowMaxPriorityFeePerGas: string
+  avgMaxPriorityFeePerGas: string
+  fastMaxPriorityFeePerGas: string
+  slowMaxFeePerGas: string
+  avgMaxFeePerGas: string
+  fastMaxFeePerGas: string
+  baseFeePerGas: string
+}
+
 export class TxData1559 {
   baseData: TxData
   chainId: string
   maxPriorityFeePerGas: string
   maxFeePerGas: string
+  gasEstimation?: GasEstimation
 }
 
 export interface AddUnapprovedTransactionReturnInfo {
@@ -466,6 +497,10 @@ export interface AddUnapproved1559TransactionReturnInfo {
 }
 
 export interface SetGasPriceAndLimitForUnapprovedTransactionReturnInfo {
+  success: boolean
+}
+
+export interface SetGasFeeAndLimitForUnapprovedTransactionReturnInfo {
   success: boolean
 }
 
@@ -516,10 +551,19 @@ export interface GetAllTransactionInfoReturnInfo {
   transactionInfos: TransactionInfo[]
 }
 
+export interface GetSelectedAccountReturnInfo {
+  selectedACcount: string | undefined
+}
+
+export interface SetSelectedAccountReturnInfo {
+  success: boolean
+}
+
 export interface EthTxController {
   addUnapprovedTransaction: (txData: TxData, from: string) => Promise<AddUnapprovedTransactionReturnInfo>
   addUnapproved1559Transaction: (txData: TxData1559, from: string) => (AddUnapproved1559TransactionReturnInfo)
   setGasPriceAndLimitForUnapprovedTransaction: (txMetaId: string, gasPrice: string, gasLimit: string) => Promise<SetGasPriceAndLimitForUnapprovedTransactionReturnInfo>
+  setGasFeeAndLimitForUnapprovedTransaction: (txMetaId: string, maxPriorityFeePerGas: string, maxFeePerGas: string, gasLimit: string) => Promise<SetGasFeeAndLimitForUnapprovedTransactionReturnInfo>
   approveTransaction: (txMetaId: string) => Promise<ApproveTransactionReturnInfo>
   rejectTransaction: (txMetaId: string) => Promise<RejectTransactionReturnInfo>
   makeERC20TransferData: (toAddress: string, amount: string) => Promise<MakeERC20TransferDataReturnInfo>
@@ -546,9 +590,20 @@ export interface SwapController {
   getTransactionPayload: (swapParams: SwapParams) => Promise<SwapResponseReturnInfo>
 }
 
+export interface GetEstimatedTimeReturnInfo {
+  success: boolean
+  seconds: string
+}
+
+export interface GetGasOracleReturnInfo {
+  gasEstimation?: GasEstimation
+}
+
 export interface AssetRatioController {
   getPrice: (fromAssets: string[], toAssets: string[], timeframe: AssetPriceTimeframe) => Promise<GetPriceReturnInfo>
   getPriceHistory: (asset: string, timeframe: AssetPriceTimeframe) => Promise<GetPriceHistoryReturnObjectInfo>
+  getEstimatedTime: (gasPrice: string /* decimal string in wei */) => Promise<GetEstimatedTimeReturnInfo>
+  getGasOracle: () => Promise<GetGasOracleReturnInfo>
 }
 
 export interface KeyringController {
@@ -558,6 +613,9 @@ export interface KeyringController {
   unlock: (password: string) => Promise<UnlockReturnInfo>
   addAccount: (accountName: string) => Promise<AddAccountReturnInfo>
   getHardwareAccounts: () => Promise<{ accounts: AccountInfo[] }>
+  notifyUserInteraction: () => Promise<void>
+  getSelectedAccount: () => Promise<GetSelectedAccountReturnInfo>
+  setSelectedAccount: (address: string) => Promise<SetSelectedAccountReturnInfo>
 }
 
 export interface GetUserAssetsReturnInfo {
@@ -584,13 +642,28 @@ export enum DefaultWallet {
   BraveWallet
 }
 
+export interface DefaultWalletReturnInfo {
+  defaultWallet: DefaultWallet
+}
+
+export interface HasEthereumPermissionReturnInfo {
+  success: boolean
+  hasPermission: boolean
+}
+
+export interface ResetEthereumPermissionReturnInfo {
+  success: boolean
+}
+
 export interface BraveWalletService {
   getUserAssets: (chainId: string) => Promise<GetUserAssetsReturnInfo>
   addUserAsset: (token: TokenInfo, chainId: string) => Promise<AddUserAssetReturnInfo>
   removeUserAsset: (contractAddress: string, chainId: string) => Promise<RemoveUserAssetReturnInfo>
   setUserAssetVisible: (contractAddress: string, chainId: string, visible: boolean) => Promise<SetUserAssetVisibleReturnInfo>
-  getDefaultWallet: () => Promise<DefaultWallet>
+  getDefaultWallet: () => Promise<DefaultWalletReturnInfo>
   setDefaultWallet: (defaultWallet: DefaultWallet) => Promise<void>
+  hasEthereumPermission: (origin: string, account: string) => Promise<HasEthereumPermissionReturnInfo>
+  resetEthereumPermission: (origin: string, account: string) => Promise<ResetEthereumPermissionReturnInfo>
 }
 
 export interface RecoveryObject {

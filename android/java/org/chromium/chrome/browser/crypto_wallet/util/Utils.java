@@ -15,6 +15,10 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.view.inputmethod.InputMethodManager;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import org.chromium.base.ContextUtils;
 import org.chromium.brave_wallet.mojom.BraveWalletConstants;
 import org.chromium.brave_wallet.mojom.TxData;
@@ -53,7 +57,12 @@ public class Utils {
     public static int ASSET_ITEM = 2;
     public static int TRANSACTION_ITEM = 3;
 
+    public static final int ACCOUNT_REQUEST_CODE = 2;
+
     private static final String PREF_CRYPTO_ONBOARDING = "crypto_onboarding";
+    public static final String ADDRESS = "address";
+    public static final String NAME = "name";
+    public static final String ISIMPORTED = "isImported";
 
     public static List<String> getRecoveryPhraseAsList(String recoveryPhrase) {
         String[] recoveryPhraseArray = recoveryPhrase.split(" ");
@@ -128,15 +137,7 @@ public class Utils {
         activity.startActivity(addAccountActivityIntent);
     }
 
-    public static void openAccountDetailActivity(Activity activity, String name, String address) {
-        assert activity != null;
-        Intent accountDetailActivityIntent = new Intent(activity, AccountDetailActivity.class);
-        accountDetailActivityIntent.putExtra("name", name);
-        accountDetailActivityIntent.putExtra("address", address);
-        activity.startActivity(accountDetailActivityIntent);
-    }
-
-    public static List<String> getNetworksList(Activity activity) {
+    public static String[] getNetworksList(Activity activity) {
         List<String> categories = new ArrayList<String>();
         categories.add(activity.getText(R.string.mainnet).toString());
         categories.add(activity.getText(R.string.rinkeby).toString());
@@ -145,7 +146,19 @@ public class Utils {
         categories.add(activity.getText(R.string.kovan).toString());
         categories.add(activity.getText(R.string.localhost).toString());
 
-        return categories;
+        return categories.toArray(new String[0]);
+    }
+
+    public static String[] getNetworksAbbrevList(Activity activity) {
+        List<String> categories = new ArrayList<String>();
+        categories.add(activity.getText(R.string.mainnet_short).toString());
+        categories.add(activity.getText(R.string.rinkeby_short).toString());
+        categories.add(activity.getText(R.string.ropsten_short).toString());
+        categories.add(activity.getText(R.string.goerli_short).toString());
+        categories.add(activity.getText(R.string.kovan_short).toString());
+        categories.add(activity.getText(R.string.localhost).toString());
+
+        return categories.toArray(new String[0]);
     }
 
     public static CharSequence getNetworkText(Activity activity, String chain_id) {
@@ -169,6 +182,32 @@ public class Utils {
             case BraveWalletConstants.MAINNET_CHAIN_ID:
             default:
                 strNetwork = activity.getText(R.string.mainnet);
+        }
+
+        return strNetwork;
+    }
+
+    public static CharSequence getNetworkShortText(Activity activity, String chain_id) {
+        CharSequence strNetwork = activity.getText(R.string.mainnet_short);
+        switch (chain_id) {
+            case BraveWalletConstants.RINKEBY_CHAIN_ID:
+                strNetwork = activity.getText(R.string.rinkeby_short);
+                break;
+            case BraveWalletConstants.ROPSTEN_CHAIN_ID:
+                strNetwork = activity.getText(R.string.ropsten_short);
+                break;
+            case BraveWalletConstants.GOERLI_CHAIN_ID:
+                strNetwork = activity.getText(R.string.goerli_short);
+                break;
+            case BraveWalletConstants.KOVAN_CHAIN_ID:
+                strNetwork = activity.getText(R.string.kovan_short);
+                break;
+            case BraveWalletConstants.LOCALHOST_CHAIN_ID:
+                strNetwork = activity.getText(R.string.localhost);
+                break;
+            case BraveWalletConstants.MAINNET_CHAIN_ID:
+            default:
+                strNetwork = activity.getText(R.string.mainnet_short);
         }
 
         return strNetwork;
@@ -286,5 +325,18 @@ public class Utils {
         }
 
         return newAddress;
+    }
+
+    public static boolean isJSONValid(String text) {
+        try {
+            new JSONObject(text);
+        } catch (JSONException ex) {
+            try {
+                new JSONArray(text);
+            } catch (JSONException ex1) {
+                return false;
+            }
+        }
+        return true;
     }
 }
