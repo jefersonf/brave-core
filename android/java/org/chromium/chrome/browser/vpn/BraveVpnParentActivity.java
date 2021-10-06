@@ -47,7 +47,7 @@ public abstract class BraveVpnParentActivity
     protected void verifySubscription() {
         showProgress();
         List<Purchase> purchases = InAppPurchaseWrapper.getInstance().queryPurchases();
-        if (purchases.size() == 1) {
+        if (purchases != null && purchases.size() == 1) {
             Purchase purchase = purchases.get(0);
             mPurchaseToken = purchase.getPurchaseToken();
             mProductId = purchase.getSkus().get(0).toString();
@@ -143,7 +143,10 @@ public abstract class BraveVpnParentActivity
         if (isSuccess) {
             String region = BraveVpnUtils.getRegionForTimeZone(
                     jsonTimezones, TimeZone.getDefault().getID());
-            BraveVpnNativeWorker.getInstance().getHostnamesForRegion(region);
+            String serverRegion = BraveVpnPrefUtils.getServerRegion();
+            BraveVpnNativeWorker.getInstance().getHostnamesForRegion(
+                    serverRegion.equals(BraveVpnPrefUtils.PREF_BRAVE_VPN_AUTOMATIC) ? region
+                                                                                    : serverRegion);
         } else {
             Toast.makeText(BraveVpnParentActivity.this, R.string.vpn_profile_creation_failed,
                          Toast.LENGTH_SHORT)
@@ -186,6 +189,7 @@ public abstract class BraveVpnParentActivity
                 BraveVpnPrefUtils.setSubscriberCredential(mSubscriberCredential);
             } catch (Exception securityException) {
                 BraveVpnProfileUtils.getInstance().startVpn(BraveVpnParentActivity.this);
+                finish();
             }
             mPurchaseToken = "";
             mProductId = "";
