@@ -17,7 +17,7 @@ DislikeFrequencyCap::~DislikeFrequencyCap() = default;
 
 std::string DislikeFrequencyCap::GetUuid(
     const CreativeAdInfo& creative_ad) const {
-  return __PRETTY_FUNCTION__ + creative_ad.creative_set_id;
+  return creative_ad.creative_set_id;
 }
 
 bool DislikeFrequencyCap::ShouldExclude(const CreativeAdInfo& creative_ad) {

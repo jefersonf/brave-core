@@ -22,7 +22,7 @@ NewTabPageAdUuidFrequencyCap::NewTabPageAdUuidFrequencyCap(
 NewTabPageAdUuidFrequencyCap::~NewTabPageAdUuidFrequencyCap() = default;
 
 std::string NewTabPageAdUuidFrequencyCap::GetUuid(const AdInfo& ad) const {
-  return __PRETTY_FUNCTION__ + ad.uuid;
+  return ad.uuid;
 }
 
 bool NewTabPageAdUuidFrequencyCap::ShouldExclude(const AdInfo& ad) {

@@ -18,7 +18,7 @@ DismissedFrequencyCap::~DismissedFrequencyCap() = default;
 
 std::string DismissedFrequencyCap::GetUuid(
     const CreativeAdInfo& creative_ad) const {
-  return __PRETTY_FUNCTION__ + creative_ad.campaign_id;
+  return creative_ad.campaign_id;
 }
 
 bool DismissedFrequencyCap::ShouldExclude(const CreativeAdInfo& creative_ad) {

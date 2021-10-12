@@ -26,7 +26,7 @@ PerHourFrequencyCap::~PerHourFrequencyCap() = default;
 
 std::string PerHourFrequencyCap::GetUuid(
     const CreativeAdInfo& creative_ad) const {
-  return __PRETTY_FUNCTION__ + creative_ad.creative_instance_id;
+  return creative_ad.creative_instance_id;
 }
 
 bool PerHourFrequencyCap::ShouldExclude(const CreativeAdInfo& creative_ad) {

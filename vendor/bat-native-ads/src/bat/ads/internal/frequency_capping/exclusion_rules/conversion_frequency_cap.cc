@@ -27,7 +27,7 @@ ConversionFrequencyCap::~ConversionFrequencyCap() = default;
 
 std::string ConversionFrequencyCap::GetUuid(
     const CreativeAdInfo& creative_ad) const {
-  return __PRETTY_FUNCTION__ + creative_ad.creative_set_id;
+  return creative_ad.creative_set_id;
 }
 
 bool ConversionFrequencyCap::ShouldExclude(const CreativeAdInfo& creative_ad) {

@@ -23,7 +23,7 @@ PromotedContentAdUuidFrequencyCap::~PromotedContentAdUuidFrequencyCap() =
     default;
 
 std::string PromotedContentAdUuidFrequencyCap::GetUuid(const AdInfo& ad) const {
-  return __PRETTY_FUNCTION__ + ad.uuid;
+  return ad.uuid;
 }
 
 bool PromotedContentAdUuidFrequencyCap::ShouldExclude(const AdInfo& ad) {
