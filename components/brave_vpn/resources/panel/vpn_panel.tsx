@@ -55,7 +55,6 @@ function initialize () {
   render(<App />, document.getElementById('mountPoint'),
   () => {
     getPanelBrowserAPI().panelHandler.showUI()
-    getPanelBrowserAPI().serviceHandler.createVPNConnection()
   })
 }
 
