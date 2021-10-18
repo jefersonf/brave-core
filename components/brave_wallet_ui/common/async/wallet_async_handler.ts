@@ -43,6 +43,7 @@ import {
 } from '../../components/desktop/popup-modals/add-account-modal/hardware-wallet-connect/types'
 import getSwapConfig from '../../constants/swap.config'
 import { hexStrToNumberArray } from '../../utils/hex-utils'
+import { findHardwareAccountInfo } from '../../utils/address-utils'
 
 type Store = MiddlewareAPI<Dispatch<AnyAction>, any>
 
@@ -75,20 +76,6 @@ async function getTokenPriceHistory (store: Store) {
     }))
   }))
   store.dispatch(WalletActions.portfolioPriceHistoryUpdated(result))
-}
-
-async function findHardwareAccountInfo (address: string) {
-  const apiProxy = await getAPIProxy()
-  const result = await apiProxy.walletHandler.getWalletInfo()
-  for (const account of result.accountInfos) {
-    if (!account.hardware) {
-      continue
-    }
-    if (account.address.toLowerCase() === address) {
-      return account
-    }
-  }
-  return null
 }
 
 export async function findENSAddress (address: string) {
@@ -526,7 +513,8 @@ handler.on(WalletActions.approveERC20Allowance.getType(), async (store, payload:
 
 handler.on(WalletActions.approveTransaction.getType(), async (store, txInfo: TransactionInfo) => {
   const apiProxy = await getAPIProxy()
-  const hardwareAccount = await findHardwareAccountInfo(txInfo.fromAddress)
+  const result = await apiProxy.walletHandler.getWalletInfo()
+  const hardwareAccount = findHardwareAccountInfo(result.accountInfos, txInfo.fromAddress)
   if (hardwareAccount && hardwareAccount.hardware) {
     const { success, message } = await apiProxy.ethTxController.approveHardwareTransaction(txInfo.id)
     if (success) {
