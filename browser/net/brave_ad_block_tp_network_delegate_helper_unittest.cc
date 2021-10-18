@@ -193,7 +193,8 @@ TEST_F(BraveAdBlockTPNetworkDelegateHelperTest, SimpleBlocking) {
 TEST_F(BraveAdBlockTPNetworkDelegateHelperTest, RedirectUrl) {
   ResetAdblockInstance(
       g_brave_browser_process->ad_block_service(),
-      "||brave.com/test.js$redirect-url=https://test.com/test.js", "", true);
+      "||brave.com/test.js$redirect-url=https://pcdn.brave.com/test.js", "",
+      true);
 
   const GURL url("https://brave.com/test.js");
   auto request_info = std::make_shared<brave::BraveRequestInfo>(url);
@@ -203,7 +204,92 @@ TEST_F(BraveAdBlockTPNetworkDelegateHelperTest, RedirectUrl) {
 
   EXPECT_TRUE(CheckRequest(request_info));
   EXPECT_EQ(request_info->blocked_by, brave::kAdBlocked);
-  EXPECT_EQ("https://test.com/test.js", request_info->new_url_spec);
+  EXPECT_EQ("https://pcdn.brave.com/test.js", request_info->new_url_spec);
+}
+
+TEST_F(BraveAdBlockTPNetworkDelegateHelperTest, NotPrivateCDNDomain) {
+  ResetAdblockInstance(
+      g_brave_browser_process->ad_block_service(),
+      "||brave.com/test.js$redirect-url=https://test.brave.com/test.js", "",
+      true);
+
+  const GURL url("https://brave.com/test.js");
+  auto request_info = std::make_shared<brave::BraveRequestInfo>(url);
+  request_info->request_identifier = 1;
+  request_info->resource_type = blink::mojom::ResourceType::kScript;
+  request_info->initiator_url = GURL("https://brave.com");
+
+  EXPECT_TRUE(CheckRequest(request_info));
+  EXPECT_EQ(request_info->blocked_by, brave::kNotBlocked);
+  EXPECT_EQ("", request_info->new_url_spec);
+}
+
+TEST_F(BraveAdBlockTPNetworkDelegateHelperTest, RedirectUrlCommaTwoUrls) {
+  ResetAdblockInstance(g_brave_browser_process->ad_block_service(),
+                       "||brave.com/test.js$redirect-url=https://test.com/"
+                       "test.js,https://test.com/test2.js",
+                       "", true);
+
+  const GURL url("https://brave.com/test.js");
+  auto request_info = std::make_shared<brave::BraveRequestInfo>(url);
+  request_info->request_identifier = 1;
+  request_info->resource_type = blink::mojom::ResourceType::kScript;
+  request_info->initiator_url = GURL("https://brave.com");
+
+  EXPECT_TRUE(CheckRequest(request_info));
+  EXPECT_EQ(request_info->blocked_by, brave::kNotBlocked);
+  EXPECT_EQ("", request_info->new_url_spec);
+}
+
+TEST_F(BraveAdBlockTPNetworkDelegateHelperTest, RedirectUrlCommaInFilename) {
+  ResetAdblockInstance(
+      g_brave_browser_process->ad_block_service(),
+      "||brave.com/test.js$redirect-url=https://test.com/tes,t.js", "", true);
+
+  const GURL url("https://brave.com/test.js");
+  auto request_info = std::make_shared<brave::BraveRequestInfo>(url);
+  request_info->request_identifier = 1;
+  request_info->resource_type = blink::mojom::ResourceType::kScript;
+  request_info->initiator_url = GURL("https://brave.com");
+
+  EXPECT_TRUE(CheckRequest(request_info));
+  EXPECT_EQ(request_info->blocked_by, brave::kNotBlocked);
+  EXPECT_EQ("", request_info->new_url_spec);
+}
+
+TEST_F(BraveAdBlockTPNetworkDelegateHelperTest, RedirectUrlCommaInPath) {
+  ResetAdblockInstance(
+      g_brave_browser_process->ad_block_service(),
+      "||brave.com/test.js$redirect-url=https://test.com/xy,z/test.js", "",
+      true);
+
+  const GURL url("https://brave.com/test.js");
+  auto request_info = std::make_shared<brave::BraveRequestInfo>(url);
+  request_info->request_identifier = 1;
+  request_info->resource_type = blink::mojom::ResourceType::kScript;
+  request_info->initiator_url = GURL("https://brave.com");
+
+  EXPECT_TRUE(CheckRequest(request_info));
+  EXPECT_EQ(request_info->blocked_by, brave::kNotBlocked);
+  EXPECT_EQ("", request_info->new_url_spec);
+}
+
+TEST_F(BraveAdBlockTPNetworkDelegateHelperTest, RedirectUrlCommaInRule) {
+  ResetAdblockInstance(g_brave_browser_process->ad_block_service(),
+                       "||brave.com/test.js$redirect-url=https://"
+                       "pcdn.bravesoftware.com/xyz/test.js,script",
+                       "", true);
+
+  const GURL url("https://brave.com/test.js");
+  auto request_info = std::make_shared<brave::BraveRequestInfo>(url);
+  request_info->request_identifier = 1;
+  request_info->resource_type = blink::mojom::ResourceType::kScript;
+  request_info->initiator_url = GURL("https://brave.com");
+
+  EXPECT_TRUE(CheckRequest(request_info));
+  EXPECT_EQ(request_info->blocked_by, brave::kAdBlocked);
+  EXPECT_EQ("https://pcdn.bravesoftware.com/xyz/test.js",
+            request_info->new_url_spec);
 }
 
 TEST_F(BraveAdBlockTPNetworkDelegateHelperTest, RedirectUrlNoHttps) {
@@ -219,6 +305,6 @@ TEST_F(BraveAdBlockTPNetworkDelegateHelperTest, RedirectUrlNoHttps) {
 
   EXPECT_TRUE(CheckRequest(request_info));
   EXPECT_TRUE(request_info->new_url_spec.empty());
-  // EXPECT_EQ(request_info->blocked_by, brave::kNotBlocked); // TODO uncomment
-  // once https://github.com/brave/adblock-rust/pull/191 merged in
+  EXPECT_EQ(request_info->blocked_by,
+            brave::kAdBlocked);  // Blocked, but not used
 }

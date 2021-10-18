@@ -25,6 +25,8 @@ int OnBeforeURLRequest_AdBlockTPPreWork(
 void SetAdblockCnameHostResolverForTesting(
     network::HostResolver* host_resolver);
 
+void SetSugarcoatRedirectDomainForTesting(std::string domain);
+
 }  // namespace brave
 
 #endif  // BRAVE_BROWSER_NET_BRAVE_AD_BLOCK_TP_NETWORK_DELEGATE_HELPER_H_

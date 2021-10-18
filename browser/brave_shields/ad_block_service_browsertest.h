@@ -20,6 +20,7 @@ class AdBlockServiceTest : public extensions::ExtensionBrowserTest {
   void SetUpOnMainThread() override;
   void SetUp() override;
   void PreRunTestOnMainThread() override;
+  void SetUpCommandLine(base::CommandLine* command_line) override;
 
  protected:
   HostContentSettingsMap* content_settings();

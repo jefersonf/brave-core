@@ -45,7 +45,6 @@
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "url/url_canon.h"
-
 namespace brave {
 
 network::HostResolver* g_testing_host_resolver;
@@ -53,6 +52,15 @@ network::HostResolver* g_testing_host_resolver;
 void SetAdblockCnameHostResolverForTesting(
     network::HostResolver* host_resolver) {
   g_testing_host_resolver = host_resolver;
+}
+
+std::vector<const std::string> pcdn_domains({"pcdn.brave.com",
+                                             "pcdn.bravesoftware.com",
+                                             "pcdn.brave.software"});
+
+void SetSugarcoatRedirectDomainForTesting(std::string domain) {
+  pcdn_domains.clear();
+  pcdn_domains.push_back(domain);
 }
 
 // Used to keep track of state between a primary adblock engine query and one
@@ -160,6 +168,14 @@ class AdblockCnameResolveHostClient : public network::mojom::ResolveHostClient {
   }
 };
 
+bool ShouldSugarcoat(GURL url) {
+  for (const base::StringPiece domain : pcdn_domains) {
+    if (url.DomainIs(domain))
+      return true;
+  }
+  return false;
+}
+
 // If `canonical_url` is specified, this will only check if the CNAME-uncloaked
 // response should be blocked. Otherwise, it will run the check for the
 // original request URL.
@@ -200,7 +216,8 @@ EngineFlags ShouldBlockRequestOnTaskRunner(
   // Check what type of redirection, if any
   const GURL adblock_url(ctx->adblock_replacement_url);
   if (ctx->blocked_by == kAdBlocked && adblock_url.is_valid()) {
-    if (adblock_url.SchemeIs(url::kHttpsScheme)) {
+    if (adblock_url.SchemeIs(url::kHttpsScheme) &&
+        ShouldSugarcoat(adblock_url)) {
       ctx->new_url_spec = ctx->adblock_replacement_url;
       ctx->adblock_redirect_type = kRemote;  // UNUSED
     } else if (adblock_url.SchemeIs(url::kDataScheme)) {

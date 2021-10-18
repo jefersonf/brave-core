@@ -37,11 +37,11 @@ function xhr_expect_content(src, expected_content) {
       if (xhr.response === expected_content) {
         numXHRLoaded++
       }
-      resolve(onLoad());
+      resolve(onLoad())
     }
     xhr.onerror = function(e) {
-      console.log(e);
-      numXHRBlocked++;
+      console.log(e)
+      numXHRBlocked++
       resolve(onLoad())
     }
     xhr.send();

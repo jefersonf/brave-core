@@ -102,7 +102,7 @@ struct BraveRequestInfo {
   BlockedBy blocked_by = kNotBlocked;
 
   // There are two types of redirects supported by adblock-rust:
-  // 1. data:// (filter option: $redirect), loads locally
+  // 1. data: (filter option: $redirect), loads locally
   // 2. https:// (filter option: $redirect-url), loads over the network
   std::string adblock_replacement_url;
   AdblockRedirectType adblock_redirect_type = kNoRedirect;
