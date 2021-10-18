@@ -27,6 +27,7 @@ import org.chromium.chrome.browser.vpn.BraveVpnNativeWorker;
 import org.chromium.chrome.browser.vpn.BraveVpnObserver;
 import org.chromium.chrome.browser.vpn.models.BraveVpnProfileCredentials;
 import org.chromium.chrome.browser.vpn.models.BraveVpnServerRegion;
+import org.chromium.chrome.browser.vpn.utils.BraveVpnApiResponseUtils;
 import org.chromium.chrome.browser.vpn.utils.BraveVpnPrefUtils;
 import org.chromium.chrome.browser.vpn.utils.BraveVpnProfileUtils;
 import org.chromium.chrome.browser.vpn.utils.BraveVpnUtils;
@@ -282,7 +283,7 @@ public class BraveVpnPreferences extends BravePreferenceFragment implements Brav
                         getActivity().getPackageName());
             }
         } else {
-            braveVpnVerificationFailed();
+            BraveVpnApiResponseUtils.queryPurchaseFailed(getActivity());
         }
     }
 
@@ -313,7 +314,7 @@ public class BraveVpnPreferences extends BravePreferenceFragment implements Brav
 
                 BraveVpnProfileUtils.getInstance().startStopVpn(getActivity());
             } else {
-                braveVpnVerificationFailed();
+                BraveVpnApiResponseUtils.queryPurchaseFailed(getActivity());
             }
             mPurchaseToken = "";
             mProductId = "";
