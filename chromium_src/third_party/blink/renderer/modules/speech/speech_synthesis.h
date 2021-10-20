@@ -6,6 +6,10 @@
 #ifndef BRAVE_CHROMIUM_SRC_THIRD_PARTY_BLINK_RENDERER_MODULES_SPEECH_SPEECH_SYNTHESIS_H_
 #define BRAVE_CHROMIUM_SRC_THIRD_PARTY_BLINK_RENDERER_MODULES_SPEECH_SPEECH_SYNTHESIS_H_
 
+// We need to include this here before redefining OnSetVoiceList to avoid a
+// name collision with a method in the mojom class.
+#include "third_party/blink/public/mojom/speech/speech_synthesis.mojom-blink.h"
+
 #define OnSetVoiceList                                                \
   OnSetVoiceList_ChromiumImpl(                                        \
       Vector<mojom::blink::SpeechSynthesisVoicePtr> voices); \
