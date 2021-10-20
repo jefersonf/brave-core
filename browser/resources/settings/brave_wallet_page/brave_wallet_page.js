@@ -1,7 +1,7 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
-import {Router} from '../router.js';
+import {Router, RouteObserverBehavior} from '../router.js';
 import {PrefsBehavior} from '../prefs/prefs_behavior.js';
 import 'chrome://resources/cr_elements/cr_input/cr_input.m.js';
  
@@ -18,11 +18,13 @@ Polymer({
   behaviors: [
     WebUIListenerBehavior,
     PrefsBehavior,
-    I18nBehavior
+    I18nBehavior,
+    RouteObserverBehavior
   ],
 
   properties: {
-    isNativeWalletEnabled_: Boolean
+    isNativeWalletEnabled_: Boolean,
+    mainBlockVisibility_: String
   },
 
   /** @private {?settings.BraveWalletBrowserProxy} */
@@ -52,7 +54,17 @@ Polymer({
   onBraveWalletEnabledChange_: function() {
     this.browserProxy_.setBraveWalletEnabled(this.$.braveWalletEnabled.checked);
   },
+  isNetworkEditorRoute: function () {
+    const router = Router.getInstance();
+    return (router.getCurrentRoute() == router.getRoutes().BRAVE_WALLET_NETWORKS);
+  },
 
+  /** @protected */
+  currentRouteChanged: function() {
+    const hidden = this.isNetworkEditorRoute()
+    this.mainBlockVisibility_ = hidden ? 'hidden' : ''
+    console.log(this.mainBlockVisibility_, hidden)
+  },
   onInputAutoLockMinutes_: function() {
     let value = Number(this.$.walletAutoLockMinutes.value)
     if (Number.isNaN(value) || value < 1 || value > 10080) {

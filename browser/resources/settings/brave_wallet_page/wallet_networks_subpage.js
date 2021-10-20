@@ -46,6 +46,7 @@ Polymer({
   created: function() {
     this.browserProxy_ = BraveWalletBrowserProxyImpl.getInstance();
     window.addEventListener('load', this.onLoad_.bind(this));
+    console.log('asdfsdaf')
   },
   onLoad_: function() {
     this.updateNetworks();
