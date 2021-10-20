@@ -56,6 +56,7 @@ using brave_shields::features::kBraveAdblockDefault1pBlocking;
 using brave_shields::features::kBraveDarkModeBlock;
 using brave_shields::features::kBraveDomainBlock;
 using brave_shields::features::kBraveExtensionNetworkBlocking;
+using brave_shields::features::kBraveSugarcoat;
 using debounce::features::kBraveDebounce;
 using ntp_background_images::features::kBraveNTPBrandedWallpaper;
 using ntp_background_images::features::kBraveNTPBrandedWallpaperDemo;
@@ -101,6 +102,12 @@ constexpr char kBraveDarkModeBlockName[] =
     "Enable dark mode blocking fingerprinting protection";
 constexpr char kBraveDarkModeBlockDescription[] =
     "Always report light mode when fingerprinting protections set to Strict";
+
+constexpr char kBraveSugarcoatName[] =
+    "Enable loading of SugarCoated resources";
+constexpr char kBraveSugarcoatDescription[] =
+    "Enable support for loading SugarCoat replacement resources based on "
+    "SugarCoat filter list";
 
 constexpr char kBraveDomainBlockName[] = "Enable domain blocking";
 constexpr char kBraveDomainBlockDescription[] =
@@ -328,6 +335,10 @@ constexpr char kUseDevUpdaterUrlDescription[] =
      flag_descriptions::kBraveDarkModeBlockName,                            \
      flag_descriptions::kBraveDarkModeBlockDescription, kOsAll,             \
      FEATURE_VALUE_TYPE(kBraveDarkModeBlock)},                              \
+    {"brave-sugarcoat",                                                     \
+     flag_descriptions::kBraveSugarcoatName,                                \
+     flag_descriptions::kBraveSugarcoatDescription, kOsAll,                 \
+     FEATURE_VALUE_TYPE(kBraveSugarcoat)},                                  \
     {"brave-domain-block",                                                  \
      flag_descriptions::kBraveDomainBlockName,                              \
      flag_descriptions::kBraveDomainBlockDescription, kOsAll,               \

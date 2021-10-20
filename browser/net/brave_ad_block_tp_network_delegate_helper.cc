@@ -168,7 +168,7 @@ class AdblockCnameResolveHostClient : public network::mojom::ResolveHostClient {
   }
 };
 
-bool ShouldSugarcoat(GURL url) {
+bool IsValidSugarcoatDomain(GURL url) {
   for (const base::StringPiece domain : pcdn_domains) {
     if (url.DomainIs(domain))
       return true;
@@ -213,15 +213,24 @@ EngineFlags ShouldBlockRequestOnTaskRunner(
     ctx->blocked_by = kAdBlocked;
   }
 
-  // Check what type of redirection, if any
+  // Check what type of adblock redirect to do, if any
   const GURL adblock_url(ctx->adblock_replacement_url);
   if (ctx->blocked_by == kAdBlocked && adblock_url.is_valid()) {
-    if (adblock_url.SchemeIs(url::kHttpsScheme) &&
-        ShouldSugarcoat(adblock_url)) {
+    // Check if it's a valid SugarCoat match
+    const auto should_redirect_url =
+        base::FeatureList::IsEnabled(
+            brave_shields::features::kBraveSugarcoat) &&
+        adblock_url.SchemeIs(url::kHttpsScheme) &&
+        IsValidSugarcoatDomain(adblock_url);
+    if (should_redirect_url) {
       ctx->new_url_spec = ctx->adblock_replacement_url;
       ctx->adblock_redirect_type = kRemote;  // UNUSED
     } else if (adblock_url.SchemeIs(url::kDataScheme)) {
       ctx->adblock_redirect_type = kLocal;
+    } else {
+      // To avoid breakage, if we can't do the adblock redirect, don't block
+      // the resource
+      ctx->blocked_by = kNotBlocked;
     }
   }
 

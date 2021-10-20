@@ -44,5 +44,9 @@ const base::Feature kBraveExtensionNetworkBlocking{
 // When enabled, Brave will always report Light in Fingerprinting: Strict mode
 const base::Feature kBraveDarkModeBlock{"BraveDarkModeBlock",
                                         base::FEATURE_ENABLED_BY_DEFAULT};
+// When enabled, Brave will use SugarCoat filter list to load replacement
+// resources via Private CDN
+const base::Feature kBraveSugarcoat{"BraveSugarcoat",
+                                    base::FEATURE_ENABLED_BY_DEFAULT};
 }  // namespace features
 }  // namespace brave_shields

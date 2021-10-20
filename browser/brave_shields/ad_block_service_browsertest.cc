@@ -77,6 +77,7 @@ using brave_shields::features::kBraveAdblockCnameUncloaking;
 using brave_shields::features::kBraveAdblockCollapseBlockedElements;
 using brave_shields::features::kBraveAdblockCosmeticFiltering;
 using brave_shields::features::kBraveAdblockDefault1pBlocking;
+using brave_shields::features::kBraveSugarcoat;
 
 std::unique_ptr<net::EmbeddedTestServer> https_server_;
 net::EmbeddedTestServer* https_server() {
@@ -1419,6 +1420,42 @@ IN_PROC_BROWSER_TEST_F(CollapseBlockedElementsFlagDisabledTest,
                          "i[0].clientHeight !== 0"));
 }
 
+class SugarcoatFlagDisabledTest : public AdBlockServiceTest {
+ public:
+  SugarcoatFlagDisabledTest() {
+    feature_list_.InitAndDisableFeature(kBraveSugarcoat);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(SugarcoatFlagDisabledTest,
+                       RedirectUrlWithFeatureDisabled) {
+  ASSERT_TRUE(https_server()->Start());
+  const std::string page_domain = "example.com";
+  const std::string sugarcoat_domain = "pcdn.brave.software";
+  GURL redirect_url = https_server()->GetURL(sugarcoat_domain, "/normal.js");
+
+  brave::SetSugarcoatRedirectDomainForTesting({redirect_url.host()});
+  UpdateAdBlockInstanceWithRules(
+      "adbanner.js$redirect-url=" + redirect_url.spec(), "", true);
+  EXPECT_EQ(browser()->profile()->GetPrefs()->GetUint64(kAdsBlocked), 0ULL);
+
+  const GURL url = https_server()->GetURL(page_domain, kAdBlockTestPageWithCsp);
+  ui_test_utils::NavigateToURL(browser(), url);
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  content::WebContentsConsoleObserver console_observer(contents);
+  // Try to load sugarcoat resource...
+  ASSERT_EQ(true, content::EvalJs(contents, "addScript('adbanner.js')"));
+  // but this should fail.
+  ASSERT_EQ(1u, console_observer.messages().size());
+  ASSERT_TRUE(console_observer.GetMessageAt(0u).find("adbanner.js loaded!") !=
+              std::string::npos);
+  EXPECT_EQ(browser()->profile()->GetPrefs()->GetUint64(kAdsBlocked), 0ULL);
+}
+
 class Default1pBlockingFlagDisabledTest : public AdBlockServiceTest {
  public:
   Default1pBlockingFlagDisabledTest() {
@@ -1536,44 +1573,6 @@ IN_PROC_BROWSER_TEST_F(AdBlockServiceTest, RedirectRulesAreRespected) {
   EXPECT_EQ(browser()->profile()->GetPrefs()->GetUint64(kAdsBlocked), 1ULL);
 }
 
-IN_PROC_BROWSER_TEST_F(AdBlockServiceTest, RedirectUrlWithCsp) {
-  ASSERT_TRUE(https_server()->Start());
-  const std::string redirect_domain = "redirect.com";
-  const std::string page_domain = "example.com";
-  const std::string sugarcoat_domain = "pcdn.brave.software";
-
-  GURL redirect_url = https_server()->GetURL(redirect_domain, "/redirected.js");
-  brave::SetSugarcoatRedirectDomainForTesting({redirect_url.host()});
-  UpdateAdBlockInstanceWithRules(
-      "js_mock_me.js$redirect-url=" + redirect_url.spec(), "", true);
-  EXPECT_EQ(browser()->profile()->GetPrefs()->GetUint64(kAdsBlocked), 0ULL);
-
-  const GURL url = https_server()->GetURL(page_domain, kAdBlockTestPageWithCsp);
-  ui_test_utils::NavigateToURL(browser(), url);
-  content::WebContents* contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
-  // Load fails because of CSP
-  content::WebContentsConsoleObserver console_observer(contents);
-  ASSERT_FALSE(content::ExecJs(contents, "addScript('js_mock_me.js')"));
-  ASSERT_EQ(1u, console_observer.messages().size());
-  ASSERT_TRUE(console_observer.GetMessageAt(0u).find(
-                  "Refused to load the script") != std::string::npos);
-
-  // Now try to load sugarcoat resource
-  redirect_url = https_server()->GetURL(sugarcoat_domain, "/normal.js");
-  brave::SetSugarcoatRedirectDomainForTesting({redirect_url.host()});
-  UpdateAdBlockInstanceWithRules(
-      "js_mock_me.js$redirect-url=" + redirect_url.spec(), "", true);
-  ui_test_utils::NavigateToURL(browser(), url);
-  // This script load+execution should succeed because of CSP bypass for PCDN
-  // hosts
-  ASSERT_EQ(true, content::EvalJs(contents, "addScript('js_mock_me.js')"));
-  ASSERT_EQ(2u, console_observer.messages().size());
-  ASSERT_TRUE(console_observer.GetMessageAt(1u).find("normal loaded!") !=
-              std::string::npos);
-  EXPECT_EQ(browser()->profile()->GetPrefs()->GetUint64(kAdsBlocked), 2ULL);
-}
-
 IN_PROC_BROWSER_TEST_F(AdBlockServiceTest, RedirectUrl) {
   ASSERT_TRUE(https_server()->Start());
   const std::string page_domain = "example.com";
@@ -1610,6 +1609,44 @@ IN_PROC_BROWSER_TEST_F(AdBlockServiceTest, RedirectUrl) {
   ASSERT_EQ(1, numXHRLoaded);
   ASSERT_EQ(0, numXHRBlocked);
   ASSERT_EQ(browser()->profile()->GetPrefs()->GetUint64(kAdsBlocked), 1ULL);
+}
+
+IN_PROC_BROWSER_TEST_F(AdBlockServiceTest, RedirectUrlWithCsp) {
+  ASSERT_TRUE(https_server()->Start());
+  const std::string redirect_domain = "redirect.com";
+  const std::string page_domain = "example.com";
+  const std::string sugarcoat_domain = "pcdn.brave.software";
+
+  GURL redirect_url = https_server()->GetURL(redirect_domain, "/redirected.js");
+  brave::SetSugarcoatRedirectDomainForTesting({redirect_url.host()});
+  UpdateAdBlockInstanceWithRules(
+      "js_mock_me.js$redirect-url=" + redirect_url.spec(), "", true);
+  EXPECT_EQ(browser()->profile()->GetPrefs()->GetUint64(kAdsBlocked), 0ULL);
+
+  const GURL url = https_server()->GetURL(page_domain, kAdBlockTestPageWithCsp);
+  ui_test_utils::NavigateToURL(browser(), url);
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  // Load fails because of CSP
+  content::WebContentsConsoleObserver console_observer(contents);
+  ASSERT_FALSE(content::ExecJs(contents, "addScript('js_mock_me.js')"));
+  ASSERT_EQ(1u, console_observer.messages().size());
+  ASSERT_TRUE(console_observer.GetMessageAt(0u).find(
+                  "Refused to load the script") != std::string::npos);
+
+  // Now try to load sugarcoat resource
+  redirect_url = https_server()->GetURL(sugarcoat_domain, "/normal.js");
+  brave::SetSugarcoatRedirectDomainForTesting({redirect_url.host()});
+  UpdateAdBlockInstanceWithRules(
+      "js_mock_me.js$redirect-url=" + redirect_url.spec(), "", true);
+  ui_test_utils::NavigateToURL(browser(), url);
+  // This script load+execution should succeed because of CSP bypass for PCDN
+  // hosts
+  ASSERT_EQ(true, content::EvalJs(contents, "addScript('js_mock_me.js')"));
+  ASSERT_EQ(2u, console_observer.messages().size());
+  ASSERT_TRUE(console_observer.GetMessageAt(1u).find("normal loaded!") !=
+              std::string::npos);
+  EXPECT_EQ(browser()->profile()->GetPrefs()->GetUint64(kAdsBlocked), 2ULL);
 }
 
 // A redirection should only be applied if there's also a matching blocking

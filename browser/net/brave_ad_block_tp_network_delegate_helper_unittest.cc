@@ -306,5 +306,5 @@ TEST_F(BraveAdBlockTPNetworkDelegateHelperTest, RedirectUrlNoHttps) {
   EXPECT_TRUE(CheckRequest(request_info));
   EXPECT_TRUE(request_info->new_url_spec.empty());
   EXPECT_EQ(request_info->blocked_by,
-            brave::kAdBlocked);  // Blocked, but not used
+            brave::kNotBlocked);
 }
