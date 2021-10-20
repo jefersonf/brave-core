@@ -19,8 +19,14 @@ bool ShouldDisableCSPCheckForLitePageSubresourceRedirectOrigin(
     ResourceRequest::RedirectStatus redirect_status,
     const KURL& url) {
   String host = url.Host();
-  if (host == "pcdn.brave.com" || host == "pcdn.bravesoftware.com" ||
-      host == "pcdn.brave.software") {
+  auto const is_script =
+      request_context == mojom::blink::RequestContextType::SCRIPT;
+  auto const is_sugarcoat_domain = host == "pcdn.brave.com" ||
+                                   host == "pcdn.bravesoftware.com" ||
+                                   host == "pcdn.brave.software";
+  auto const is_redirect =
+      redirect_status == ResourceRequestHead::RedirectStatus::kFollowedRedirect;
+  if (is_script && is_sugarcoat_domain && is_redirect) {
     return true;
   }
   return ShouldDisableCSPCheckForLitePageSubresourceRedirectOrigin_ChromiumImpl(
