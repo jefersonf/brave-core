@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+ import {PrefsBehavior} from '../prefs/prefs_behavior.js';
  import { BraveWalletBrowserProxyImpl } from './brave_wallet_browser_proxy.m.js';
 
 (function() {
@@ -15,6 +16,7 @@ Polymer({
   is: 'settings-wallet-networks-subpage',
 
   behaviors: [
+    PrefsBehavior,
     I18nBehavior,
     WebUIListenerBehavior
   ],
@@ -46,11 +48,12 @@ Polymer({
   created: function() {
     this.browserProxy_ = BraveWalletBrowserProxyImpl.getInstance();
     window.addEventListener('load', this.onLoad_.bind(this));
-    console.log('asdfsdaf')
   },
+
   onLoad_: function() {
     this.updateNetworks();
   },
+
   notifyKeylist: function() {
     const keysList =
     /** @type {IronListElement} */ (this.$$('#networksList'));
@@ -58,45 +61,47 @@ Polymer({
       keysList.notifyResize();
     }
   },
-  toggleUILayout: function(launched) {
-    if (launched) {
-      this.localNodeLaunchError_ = false
-    } else {
-      this.showAddWalletNetworkDialog_ = false
-    }
-  },
-
-  onServiceLaunched: function(success) {
-    this.toggleUILayout(success)
-    if (success) {
-      this.updateNetworks();
-    }
-  },
 
   /*++++++
   * @override */
   ready: function() {
+    this.updateNetworks();
   },
 
-  getIconForKey: function(name) {
-    return name == 'self' ? 'icon-button-self' : 'icon-button'
+  isDefaultNetwork: function (chainId) {
+    const defaultNetwork =
+      (chainId === this.getPref('brave.wallet.wallet_current_chain_id').value)
+    console.log(defaultNetwork, chainId)
+    return defaultNetwork
   },
-  
+
+  getItemDescritionText: function(item) {
+    const url = (item.rpcUrls && item.rpcUrls.length) ?  item.rpcUrls[0] : 'no url';
+    return item.chainId + ' ' + url
+  },
+
+  onDeleteActionTapped_: function(event) {
+    var message = this.i18n('walletDeleteNetworkConfirmation',
+                            event.model.item.chainName)
+    if (!window.confirm(message))
+      return
+
+    this.browserProxy_.removeCustomNetwork(event.model.item.chainId).
+        then(success => { this.updateNetworks() })
+  },
 
   onAddNetworkTap_: function(item) {
     this.showAddWalletNetworkDialog_ = true
   },
 
   updateNetworks: function() {
-/*
-    this.browserProxy_.getIpnsKeysList().then(keys => {
-      if (!keys)
+    this.browserProxy_.getCustomNetworksList().then(networks => {
+      if (!networks)
         return;
-      this.keys_ = JSON.parse(keys);
-      this.toggleUILayout(true)
+      this.networks_ = JSON.parse(networks);
+      console.log(this.networks_ )
       this.notifyKeylist();
     });
-    */
   },
 
   onAddNetworkDialogClosed_: function() {

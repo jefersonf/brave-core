@@ -116,6 +116,24 @@ class BraveWalletGetWeb3ProviderListFunction : public ExtensionFunction {
   ResponseAction Run() override;
 };
 
+class BraveWalletGetCustomNetworksListFunction : public ExtensionFunction {
+ public:
+  DECLARE_EXTENSION_FUNCTION("braveWallet.getCustomNetworksList", UNKNOWN)
+
+ protected:
+  ~BraveWalletGetCustomNetworksListFunction() override {}
+  ResponseAction Run() override;
+};
+
+class BraveWalletRemoveCustomNetworkFunction : public ExtensionFunction {
+ public:
+  DECLARE_EXTENSION_FUNCTION("braveWallet.removeCustomNetwork", UNKNOWN)
+
+ protected:
+  ~BraveWalletRemoveCustomNetworkFunction() override {}
+  ResponseAction Run() override;
+};
+
 class BraveWalletIsNativeWalletEnabledFunction : public ExtensionFunction {
  public:
   DECLARE_EXTENSION_FUNCTION("braveWallet.isNativeWalletEnabled", UNKNOWN)

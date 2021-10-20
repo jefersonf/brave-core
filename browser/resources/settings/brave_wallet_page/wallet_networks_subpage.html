@@ -30,9 +30,7 @@
   #icon-button {
     display: none;
   }
-  #icon-button-self {
-    --cr-icon-image: url(chrome://resources/images/icon_refresh.svg);
-  }
+
   #networks-section {
     display: block;
     background-color: var(--cr-card-background-color);
@@ -69,12 +67,12 @@
           <div>
             <div class="settings-box">
               <div class="flex cr-padded-text">
-                <div>{{item.name}}</div>
-                <div class="secondary">{{item.value}}</div>
+                <div>({{item.nativeCurrency.name}}) {{item.chainName}}</div>
+                <div class="secondary">[[getItemDescritionText(item)]]</div>
               </div>
-              <cr-icon-button id="[[getIconForNetwork(item.name)]]"
-                  on-click="onNetworkActionTapped_"
-                  itemName=[[item.name]]>
+              <cr-icon-button class="icon-picture-delete"
+                  hidden=[[isDefaultNetwork(item.chainId)]]
+                  on-click="onDeleteActionTapped_">
               </cr-icon-button>
             </div>
           </div>

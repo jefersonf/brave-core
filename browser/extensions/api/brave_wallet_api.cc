@@ -17,12 +17,15 @@
 #include "brave/browser/extensions/ethereum_remote_client_util.h"
 #include "brave/common/extensions/api/brave_wallet.h"
 #include "brave/components/brave_wallet/browser/brave_wallet_utils.h"
+#include "brave/components/brave_wallet/browser/pref_names.h"
 #include "brave/components/brave_wallet/common/brave_wallet.mojom.h"
+#include "brave/components/brave_wallet/common/value_conversion_utils.h"
 #include "brave/grit/brave_generated_resources.h"
 #include "chrome/browser/extensions/api/tabs/tabs_constants.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/prefs/pref_service.h"
+#include "components/prefs/scoped_user_pref_update.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_util.h"
@@ -237,6 +240,54 @@ ExtensionFunction::ResponseAction
 BraveWalletIsNativeWalletEnabledFunction::Run() {
   return RespondNow(
       OneArgument(base::Value(::brave_wallet::IsNativeWalletEnabled())));
+}
+
+ExtensionFunction::ResponseAction
+BraveWalletGetCustomNetworksListFunction::Run() {
+  base::Value list(base::Value::Type::LIST);
+  Profile* profile = Profile::FromBrowserContext(browser_context());
+  std::vector<::brave_wallet::mojom::EthereumChainPtr> custom_chains;
+  ::brave_wallet::GetAllCustomChains(profile->GetPrefs(), &custom_chains);
+  for (const auto& it : custom_chains) {
+    list.Append(::brave_wallet::EthereumChainToValue(it));
+  }
+
+  std::string json_string;
+  base::JSONWriter::Write(list, &json_string);
+  return RespondNow(OneArgument(base::Value(json_string)));
+}
+
+ExtensionFunction::ResponseAction
+BraveWalletRemoveCustomNetworkFunction::Run() {
+  std::unique_ptr<brave_wallet::RemoveCustomNetwork::Params> params(
+      brave_wallet::RemoveCustomNetwork::Params::Create(args()));
+  //  params->chain_id;
+  Profile* profile = Profile::FromBrowserContext(browser_context());
+  std::vector<::brave_wallet::mojom::EthereumChainPtr> custom_chains;
+  ::brave_wallet::GetAllCustomChains(profile->GetPrefs(), &custom_chains);
+  bool network_exists = false;
+  for (const auto& it : custom_chains) {
+    if (it->chain_id != params->chain_id)
+      continue;
+    network_exists = true;
+    break;
+  }
+
+  if (!network_exists) {
+    return RespondNow(OneArgument(base::Value(false)));
+  }
+
+  {
+    ListPrefUpdate update(profile->GetPrefs(), kBraveWalletCustomNetworks);
+    base::ListValue* list = update.Get();
+    list->EraseListValueIf([&](const base::Value& v) {
+      auto* chain_id_value = v.FindStringKey("chainId");
+      if (!chain_id_value)
+        return false;
+      return *chain_id_value == params->chain_id;
+    });
+  }
+  return RespondNow(OneArgument(base::Value(true)));
 }
 
 }  // namespace api

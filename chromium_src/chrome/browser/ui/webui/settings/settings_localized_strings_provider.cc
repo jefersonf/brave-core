@@ -342,6 +342,8 @@ void BraveAddCommonStrings(content::WebUIDataSource* html_source,
     {"walletNetworksListTitle", IDS_SETTINGS_WALLET_NETWORK_LIST_TITLE},
     {"walletNetworksItemDesc", IDS_SETTINGS_WALLET_NETWORKS_ITEM_DESC},
     {"walletNetworksError", IDS_SETTINGS_WALLET_NETWORKS_ERROR},
+    {"walletDeleteNetworkConfirmation",
+     IDS_SETTINGS_WALLET_NETWORKS_CONFIRMATION},
   };
 
   html_source->AddLocalizedStrings(localized_strings);

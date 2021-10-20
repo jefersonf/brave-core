@@ -82,5 +82,17 @@
     "dependencies": [],
     "contexts": ["webui"],
     "component_extensions_auto_granted": false
+  },
+  "braveWallet.getCustomNetworksList": {
+    "channel": "stable",
+    "dependencies": [],
+    "contexts": ["webui"],
+    "component_extensions_auto_granted": false
+  },
+  "braveWallet.removeCustomNetwork": {
+    "channel": "stable",
+    "dependencies": [],
+    "contexts": ["webui"],
+    "component_extensions_auto_granted": false
   }
 }
